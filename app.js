@@ -44,7 +44,7 @@ function render() {
     check.addEventListener('change', () => { tasks = toggleTask(tasks, task.id); save(); render(); });
     const title = document.createElement('span'); title.className = 'task-title'; title.textContent = task.title;
     const date = document.createElement('span'); date.className = `task-date${isToday(task.createdAt) ? ' today' : ''}`; date.textContent = isToday(task.createdAt) ? 'Today' : formatDate(task.createdAt);
-    const remove = document.createElement('button'); remove.className = 'delete-button'; remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', `Delete: ${task.title}`);
+    const remove = document.createElement('button'); remove.className = 'delete-button'; remove.type = 'button'; remove.textContent = '×'; remove.title = 'Delete task'; remove.setAttribute('aria-label', `Delete: ${task.title}`);
     remove.addEventListener('click', () => { tasks = deleteTask(tasks, task.id); save(); render(); });
     row.append(check, title, date, remove);
     return row;
