@@ -1,0 +1,10 @@
+{
+  "name": "daymark-todo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A polished, browser-based to-do list with local persistence.",
+  "scripts": {
+    "test": "node --test --test-isolation=none"
+  }
+}
