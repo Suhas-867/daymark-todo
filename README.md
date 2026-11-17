@@ -64,3 +64,8 @@ tasks.js                   Task operations and storage loading
 tests/tasks.test.js        Automated unit tests
 .github/workflows/ci.yml   GitHub Actions CI workflow
 ```
+
+
+## VS Code learning copy
+
+A separate learning-oriented version is available in [daymark-vscode-project/app](./daymark-vscode-project/app/README.md). It includes its own setup guide, tests, and automated checks without replacing this repository's root app.
