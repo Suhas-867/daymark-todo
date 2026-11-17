@@ -1,0 +1,3 @@
+exclude:
+  - daymark-vscode-project/README.md
+  - daymark-vscode-project/app/README.md
