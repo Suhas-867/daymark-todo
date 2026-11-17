@@ -1,0 +1,1 @@
+{"name":"daymark-vscode-project","version":"1.0.0","private":true,"type":"module","description":"A polished, browser-based to-do list with local persistence.","scripts":{"test":"node --test"}}
