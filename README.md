@@ -11,7 +11,12 @@ Daymark is a responsive task manager built for a CDD minor project. It lets you 
 - See task counts and a live completion progress indicator.
 - Keep tasks after closing and reopening the browser using `localStorage`.
 - Use the responsive layout on desktop and mobile.
+- Explore the Focus Club demo: ₹50 for 30 days, timed tasks, and a points balance.
+- Earn 100 points for an on-time task, lose 100 for a missed timer, and see a ₹30 demo reward at each 1,000-point milestone.
+- Review the planned AI proof-upload feature in the in-app roadmap; proof review is not implemented.
 - Run automated unit tests locally and through GitHub Actions on pushes and pull requests.
+
+> **Presentation demo only:** membership activation and rupee rewards are simulated in this browser. No payments or payouts occur.
 
 ## Run locally
 
@@ -63,9 +68,19 @@ app.js                     Browser interface and event handling
 tasks.js                   Task operations and storage loading
 tests/tasks.test.js        Automated unit tests
 .github/workflows/ci.yml   GitHub Actions CI workflow
+rewards.js                 Demo membership, points, and milestone calculations
 ```
 
+## Membership and rewards demo
 
-## VS Code learning copy
+Activate the one-month demo membership to create tasks with a 1, 5, 15, or 30 minute timer (or one hour). Complete a task before its timer expires to earn 100 points. When a timer expires, the app deducts 100 points once. Every 1,000-point balance milestone adds ₹30 to the demo reward total. Demo points and membership state stay in this browser; they are not cash, a payment, or a payout.
 
-A separate learning-oriented version is available in [daymark-vscode-project/app](./daymark-vscode-project/app/README.md). It includes its own setup guide, tests, and automated checks without replacing this repository's root app.
+The **Future Plan** card describes optional proof uploads and AI-assisted review. It is shown as a roadmap idea only; this build does not upload files or check proof with AI.
+
+### Judge presentation flow
+
+1. Activate the ₹50 one-month demo plan and point out the no-payment notice.
+2. Add a one-minute task and show its live countdown.
+3. Complete one task in time to demonstrate the +100 point result; add another and let it expire to show the −100 result.
+4. Explain that every 1,000-point milestone displays a ₹30 demo reward, with no actual payout.
+5. Point to the AI proof review card as planned future work, not a current feature.
