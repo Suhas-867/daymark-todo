@@ -11,6 +11,7 @@ Daymark is a responsive task manager built for a CDD minor project. It lets you 
 - See task counts and a live completion progress indicator.
 - Keep tasks after closing and reopening the browser using `localStorage`.
 - Use the responsive layout on desktop and mobile.
+- Create the first 10 timed tasks free; after that, activate the one-month membership to continue.
 - Explore the Focus Club demo: ₹50 for 30 days, timed tasks, and a points balance.
 - Earn 100 points for an on-time task, lose 100 for a missed timer, and see a ₹30 demo reward at each 1,000-point milestone.
 - Review the planned AI proof-upload feature in the in-app roadmap; proof review is not implemented.
@@ -51,13 +52,13 @@ Replace the example remote with your repository URL. Once pushed, GitHub Actions
 
 ## Demonstration outline
 
-1. Open the app and point out the task overview and progress card.
-2. Add two tasks; show that the newest appears first.
-3. Mark one complete and show the progress count update.
-4. Use the sidebar's In progress and Completed filters, then try the Open and Done controls above the list. Both sets of filters show the matching tasks and stay in sync.
-5. Delete a task and clear completed tasks.
-6. Refresh the page to demonstrate local persistence.
-7. Show the test output from `npm test` and the Actions run in GitHub after pushing.
+1. Add up to 10 timed tasks without activating membership; the free-trial counter persists if tasks are deleted.
+2. Show the membership prompt after the trial is used, then activate the one-month demo membership; no payment is charged.
+3. Finish a task on time to show +100 points; let another task expire to show the −100 penalty.
+4. Demonstrate the filters, completed-task controls, and local persistence.
+5. Explain the ₹30 demo reward for each 1,000-point milestone.
+6. Show the **Future Plan** card for proposed AI proof upload and review; it is not implemented.
+7. Show the test workflow in GitHub Actions. This demo does not process payments or payouts.
 
 ## Project structure
 
@@ -73,14 +74,14 @@ rewards.js                 Demo membership, points, and milestone calculations
 
 ## Membership and rewards demo
 
-Activate the one-month demo membership to create tasks with a 1, 5, 15, or 30 minute timer (or one hour). Complete a task before its timer expires to earn 100 points. When a timer expires, the app deducts 100 points once. Every 1,000-point balance milestone adds ₹30 to the demo reward total. Demo points and membership state stay in this browser; they are not cash, a payment, or a payout.
+Create the first 10 timed tasks free, with a 1, 5, 15, or 30 minute timer (or one hour). This lifetime trial counter remains after deleting tasks. After the trial, activate the one-month demo membership to continue. Complete a task before its timer expires to earn 100 points. When a timer expires, the app deducts 100 points once. Every 1,000-point balance milestone adds ₹30 to the demo reward total. Demo points and membership state stay in this browser; they are not cash, a payment, or a payout.
 
 The **Future Plan** card describes optional proof uploads and AI-assisted review. It is shown as a roadmap idea only; this build does not upload files or check proof with AI.
 
 ### Judge presentation flow
 
-1. Activate the ₹50 one-month demo plan and point out the no-payment notice.
-2. Add a one-minute task and show its live countdown.
-3. Complete one task in time to demonstrate the +100 point result; add another and let it expire to show the −100 result.
+1. Add a one-minute task and show the free-trial counter decrease from 10.
+2. Show the membership prompt after the 10th task, then activate the ₹50 one-month demo plan and point out the no-payment notice.
+3. Complete one task in time to demonstrate the +100 point result; let another expire to show the −100 result.
 4. Explain that every 1,000-point milestone displays a ₹30 demo reward, with no actual payout.
 5. Point to the AI proof review card as planned future work, not a current feature.
