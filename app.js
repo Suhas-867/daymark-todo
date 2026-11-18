@@ -1,5 +1,5 @@
 import { STORAGE_KEY, addTask, clearCompleted, completeTimedTask, deleteTask, failExpiredTasks, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
-import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=trial-2';
+import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=trial-3';
 
 const $ = selector => document.querySelector(selector);
 const list = $('#task-list');
@@ -68,7 +68,6 @@ function render() {
   $('#all-count').textContent = counts.total;
   $('#active-count').textContent = open;
   $('#completed-count').textContent = counts.completed;
-  $('#heading-count').textContent = visibleTasks.length;
   $('#list-summary').innerHTML = `YOUR TASKS <span class="toolbar-dot">·</span> ${visibleTasks.length} ${visibleTasks.length === 1 ? 'ITEM' : 'ITEMS'}`;
   $('#progress-percent').textContent = `${counts.percent}%`;
   $('#progress-fraction').textContent = `${counts.completed} of ${counts.total} done`;
