@@ -1,44 +1,44 @@
-# Daymark To-Do App
+# Daymark Focus Club — VS Code Learning Project
 
-A browser-based task manager for learning and experimenting in Visual Studio Code. This copy lives in its own folder in the public repository and saves tasks in this browser's local storage.
+A browser-based task manager and presentation prototype for exploring a timed-task membership and rewards idea.
 
-## Features
+## Demo plan
 
-- Add, complete, reopen, and delete tasks.
-- Filter tasks and clear completed items.
-- View task counts and completion progress.
-- Responsive desktop and mobile layout.
-- Automated tests run locally and through GitHub Actions.
+- Membership: ₹50 for 30 days.
+- Complete a timed task before its deadline: +100 points.
+- Miss a timer: −100 points, applied once.
+- Reach each 1,000-point milestone: add a ₹30 demo reward.
+- AI-assisted proof upload and review: future plan only; not implemented.
+
+**Presentation demo only:** membership activation and rupee rewards are simulated in this browser. No payment, file upload, AI review, or payout occurs. This front-end stores demo state locally and is not a secure payment or account system.
 
 ## Open in VS Code
 
-1. Choose **File → Open Folder** and select the repository's daymark-vscode-project/app folder.
-2. Open a terminal in that folder and run: python -m http.server 8001
-3. Visit http://localhost:8001 and leave the terminal open while using the app. Press **Ctrl+C** to stop the server.
+1. Choose **File → Open Folder** and select the `daymark-vscode-project` folder.
+2. Open **Terminal → New Terminal** and start a server:
 
-Port 8001 lets this copy run alongside the original app on port 8000.
+   ```powershell
+   python -m http.server 8001
+   ```
+
+3. Visit [http://localhost:8001](http://localhost:8001). Keep the terminal open; press **Ctrl+C** to stop it.
+
+Port `8001` lets this copy run beside the original app on port `8000`.
+
+## Judge presentation flow
+
+1. Activate the one-month demo membership and point out the no-payment notice.
+2. Add a one-minute task and show its countdown.
+3. Complete one task on time for +100 points; let another timer expire to demonstrate the −100 result.
+4. Explain that the ₹30 reward appears in the demo for each 1,000-point milestone and is not paid out.
+5. Show the **Future Plan** card for proposed AI-assisted proof review.
 
 ## Project files
 
-- index.html — page structure and controls.
-- styles.css — visual design and responsive layout.
-- app.js — connects browser events to the interface.
-- tasks.js — task operations, filtering, progress, and storage.
-- tests/tasks.test.js — unit tests for task behavior and saved data.
-- ../../.github/workflows/daymark-vscode-learning.yml — test workflow for pushes and pull requests.
+- `index.html`, `styles.css` — accessible interface and responsive presentation.
+- `app.js` — membership demo, countdowns, scoring, and interface updates.
+- `tasks.js`, `rewards.js` — task timing and local demo reward calculations.
+- `tests/tasks.test.js` — task behavior tests.
+- `.github/workflows/ci.yml` — checks the project on pushes and pull requests.
 
-## Run the tests
-
-Install Node.js 22 or newer, open the terminal in the app folder, and run: npm test
-
-No third-party packages are required.
-
-## Suggested learning path
-
-1. Follow the Add task form from index.html through app.js to addTask in tasks.js.
-2. Trace a checkbox change through toggleTask and the render function.
-3. Change a color in styles.css, save, and refresh.
-4. Make a small behavior change, add or update a test, and run npm test.
-5. Review your changes in VS Code's **Source Control** panel before committing.
-
-Tasks stay in this browser on this computer. They do not sync to the original app or another device.
+Tasks, demo membership, points, and reward milestones remain in this browser's local storage. No payment or payout service is connected.

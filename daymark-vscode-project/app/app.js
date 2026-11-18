@@ -1,27 +1,68 @@
-import { STORAGE_KEY, addTask, clearCompleted, deleteTask, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
+import { STORAGE_KEY, addTask, clearCompleted, completeTimedTask, deleteTask, failExpiredTasks, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
+import { REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js';
 
 const $ = selector => document.querySelector(selector);
 const list = $('#task-list');
 const form = $('#task-form');
 const input = $('#task-input');
+const durationInput = $('#task-duration');
 const emptyState = $('#empty-state');
+const notice = $('#reward-notice');
 let tasks = loadTasks(window.localStorage);
+let rewards = loadRewards(window.localStorage);
 let currentFilter = 'all';
 
 $('#today-label').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
 
-function save() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  } catch {
-    // The app remains usable for this session when browser storage is unavailable.
-  }
+function saveTasks() {
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch { /* Keep the current session usable if storage is unavailable. */ }
+}
+
+function saveRewards() {
+  try { window.localStorage.setItem(REWARDS_KEY, JSON.stringify(rewards)); } catch { /* This project is a local demonstration. */ }
+}
+
+function showNotice(message, kind = 'info') {
+  notice.textContent = message;
+  notice.className = `reward-notice notice-${kind}`;
+  notice.hidden = false;
+}
+
+function changePoints(delta) {
+  if (!delta) return 0;
+  const result = applyPointDelta(rewards, delta);
+  rewards = result.rewards;
+  saveRewards();
+  return result.newMilestones;
+}
+
+function settleExpiredTasks() {
+  const result = failExpiredTasks(tasks);
+  if (!result.failedIds.length) return;
+  tasks = result.tasks;
+  const milestoneCount = changePoints(result.pointsDelta);
+  saveTasks();
+  showNotice(`Timer ended. ${result.failedIds.length === 1 ? '100 points were' : `${result.failedIds.length * 100} points were`} deducted.`, 'failure');
+  if (milestoneCount) showNotice(`You also reached a ${milestoneCount > 1 ? `${milestoneCount} × ` : ''}1,000-point milestone. Demo rewards earned: ₹${milestoneCount * 30}.`, 'success');
+}
+
+function remainingTime(task) {
+  return Math.max(0, Date.parse(task.deadlineAt) - Date.now());
+}
+
+function formatTimer(milliseconds) {
+  const seconds = Math.ceil(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function render() {
   const visibleTasks = filterTasks(tasks, currentFilter);
   const counts = progress(tasks);
-  const open = counts.total - counts.completed;
+  const open = tasks.filter(task => !task.completed && task.outcome !== 'failed').length;
+  const activeMember = hasActiveMembership(rewards);
+  const milestone = milestoneProgress(rewards);
+
   $('#all-count').textContent = counts.total;
   $('#active-count').textContent = open;
   $('#completed-count').textContent = counts.completed;
@@ -35,24 +76,62 @@ function render() {
   $('#clear-completed').hidden = counts.completed === 0;
   $('#list-heading').innerHTML = `${currentFilter === 'active' ? 'In progress' : currentFilter === 'completed' ? 'Completed' : 'All tasks'} <span>${visibleTasks.length}</span>`;
 
+  $('#membership-status').textContent = activeMember ? 'Demo membership active' : rewards.membershipExpiresAt ? 'Membership expired' : 'Not active';
+  $('#membership-expiry').textContent = activeMember ? `Active until ${formatDate(rewards.membershipExpiresAt)}` : 'Try the one-month demo plan.';
+  $('#membership-button').textContent = activeMember ? 'Extend demo month · ₹50' : 'Activate demo plan · ₹50';
+  $('#task-input').disabled = !activeMember;
+  $('#task-duration').disabled = !activeMember;
+  $('#task-form').querySelector('.add-button').disabled = !activeMember;
+  $('#task-form').classList.toggle('membership-locked', !activeMember);
+
+  $('#points-total').textContent = rewards.points;
+  $('#milestone-copy').textContent = `${milestone.points.toLocaleString()} / ${milestone.target.toLocaleString()} points`;
+  $('#milestone-bar').style.width = `${milestone.percent}%`;
+  $('#milestone-bar').parentElement.setAttribute('aria-valuenow', String(milestone.points));
+  $('#reward-total').textContent = `₹${rewards.demoRupeesEarned}`;
+
   list.replaceChildren(...visibleTasks.map(task => {
     const row = document.createElement('li');
-    row.className = `task-row${task.completed ? ' is-complete' : ''}`;
+    row.className = `task-row${task.completed ? ' is-complete' : ''}${task.outcome === 'failed' || task.outcome === 'late' ? ' is-missed' : ''}`;
     const check = document.createElement('input');
     check.className = 'check-button'; check.type = 'checkbox'; check.checked = task.completed;
+    check.disabled = ['success', 'failed', 'late'].includes(task.outcome);
     check.setAttribute('aria-label', `${task.completed ? 'Mark as in progress' : 'Mark as complete'}: ${task.title}`);
-    check.addEventListener('change', () => { tasks = toggleTask(tasks, task.id); save(); render(); });
+    check.addEventListener('change', () => {
+      if (task.outcome === 'pending') {
+        const result = completeTimedTask(tasks, task.id);
+        tasks = result.tasks;
+        const milestoneCount = changePoints(result.pointsDelta);
+        saveTasks();
+        if (result.pointsDelta > 0) showNotice('Task completed on time: +100 points.', 'success');
+        else if (result.pointsDelta < 0) showNotice('Task completed after its timer: −100 points.', 'failure');
+        if (milestoneCount) showNotice(`Milestone reached: ${milestoneCount * 30} demo rupees earned.`, 'success');
+      } else {
+        tasks = toggleTask(tasks, task.id);
+        saveTasks();
+      }
+      render();
+    });
+
     const title = document.createElement('span'); title.className = 'task-title'; title.textContent = task.title;
+    const timer = document.createElement('span'); timer.className = `task-timer${task.outcome === 'pending' && remainingTime(task) < 60_000 ? ' timer-urgent' : ''}`;
+    if (task.outcome === 'pending') timer.textContent = `◷ ${formatTimer(remainingTime(task))}`;
+    else if (task.outcome === 'success') timer.textContent = 'On time · +100 pts';
+    else if (task.outcome === 'failed') timer.textContent = 'Time expired · −100 pts';
+    else if (task.outcome === 'late') timer.textContent = 'Finished late · −100 pts';
+    else timer.textContent = 'Existing task · no points';
+
     const date = document.createElement('span'); date.className = `task-date${isToday(task.createdAt) ? ' today' : ''}`; date.textContent = isToday(task.createdAt) ? 'Today' : formatDate(task.createdAt);
     const remove = document.createElement('button'); remove.className = 'delete-button'; remove.type = 'button'; remove.textContent = '×'; remove.title = 'Delete task'; remove.setAttribute('aria-label', `Delete: ${task.title}`);
-    remove.addEventListener('click', () => { tasks = deleteTask(tasks, task.id); save(); render(); });
-    row.append(check, title, date, remove);
+    remove.addEventListener('click', () => { tasks = deleteTask(tasks, task.id); saveTasks(); render(); });
+    row.append(check, title, timer, date, remove);
     return row;
   }));
 
   emptyState.hidden = visibleTasks.length > 0;
-  if (!tasks.length) { $('#empty-title').textContent = 'A fresh start.'; $('#empty-copy').textContent = 'Add your first task and make today count.'; }
+  if (!tasks.length) { $('#empty-title').textContent = 'A fresh start.'; $('#empty-copy').textContent = 'Add your first timed task and make today count.'; }
   else if (!visibleTasks.length) { $('#empty-title').textContent = currentFilter === 'active' ? 'All caught up.' : 'Nothing here yet.'; $('#empty-copy').textContent = currentFilter === 'active' ? 'You’ve completed every task. Enjoy the breathing room.' : 'Completed tasks will show up here.'; }
+
   document.querySelectorAll('[data-filter]').forEach(button => {
     const active = button.dataset.filter === currentFilter;
     button.classList.toggle('selected', active);
@@ -61,14 +140,11 @@ function render() {
   });
 }
 
-function setFilter(filter) {
-  currentFilter = filter;
-  render();
-}
+function setFilter(filter) { currentFilter = filter; render(); }
 
 function isToday(value) {
   const date = new Date(value), now = new Date();
-  return date.toDateString() === now.toDateString();
+  return !Number.isNaN(date.valueOf()) && date.toDateString() === now.toDateString();
 }
 function formatDate(value) {
   const date = new Date(value);
@@ -77,17 +153,29 @@ function formatDate(value) {
 
 form.addEventListener('submit', event => {
   event.preventDefault();
+  if (!hasActiveMembership(rewards)) { showNotice('Activate the demo membership before adding a timed task.'); return; }
   if (!input.value.trim()) { input.focus(); return; }
-  tasks = addTask(tasks, input.value);
+  tasks = addTask(tasks, input.value, new Date(), Number(durationInput.value));
   currentFilter = 'all';
   input.value = '';
-  save(); render(); input.focus();
+  saveTasks(); render(); input.focus();
 });
-document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => setFilter(button.dataset.filter)));
-$('#clear-completed').addEventListener('click', () => { tasks = clearCompleted(tasks); save(); render(); });
-window.addEventListener('storage', event => {
-  if (event.key !== STORAGE_KEY) return;
-  tasks = loadTasks(window.localStorage);
+
+$('#membership-button').addEventListener('click', () => {
+  rewards = extendDemoMembership(rewards);
+  saveRewards();
   render();
+  showNotice('Demo membership active for one month. No payment was charged.', 'success');
 });
+
+document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => setFilter(button.dataset.filter)));
+$('#clear-completed').addEventListener('click', () => { tasks = clearCompleted(tasks); saveTasks(); render(); });
+window.addEventListener('storage', event => {
+  if (event.key === STORAGE_KEY) tasks = loadTasks(window.localStorage);
+  if (event.key === REWARDS_KEY) rewards = loadRewards(window.localStorage);
+  if (event.key === STORAGE_KEY || event.key === REWARDS_KEY) render();
+});
+
+settleExpiredTasks();
 render();
+window.setInterval(() => { settleExpiredTasks(); render(); }, 1000);
