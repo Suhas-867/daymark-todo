@@ -1,5 +1,5 @@
 import { STORAGE_KEY, addTask, clearCompleted, completeTimedTask, deleteTask, failExpiredTasks, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
-import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=party-1';
+import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=party-2';
 
 const $ = selector => document.querySelector(selector);
 const list = $('#task-list');
