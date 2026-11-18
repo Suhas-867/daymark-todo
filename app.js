@@ -1,13 +1,17 @@
 import { STORAGE_KEY, addTask, clearCompleted, completeTimedTask, deleteTask, failExpiredTasks, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
-import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=trial-3';
+import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=party-1';
 
 const $ = selector => document.querySelector(selector);
 const list = $('#task-list');
 const form = $('#task-form');
 const input = $('#task-input');
 const durationInput = $('#task-duration');
+const customDurationInput = $('#custom-duration');
 const emptyState = $('#empty-state');
 const notice = $('#reward-notice');
+const outcomeOverlay = $('#outcome-overlay');
+const outcomeMessage = $('#outcome-message');
+let outcomeTimeout;
 let tasks = loadTasks(window.localStorage);
 let rewards = loadRewards(window.localStorage);
 let currentFilter = 'all';
@@ -28,6 +32,14 @@ function showNotice(message, kind = 'info') {
   notice.hidden = false;
 }
 
+function showOutcomeMessage(message, kind) {
+  window.clearTimeout(outcomeTimeout);
+  outcomeMessage.textContent = message;
+  outcomeOverlay.className = `outcome-overlay outcome-${kind}`;
+  outcomeOverlay.hidden = false;
+  outcomeTimeout = window.setTimeout(() => { outcomeOverlay.hidden = true; }, 4200);
+}
+
 function changePoints(delta) {
   if (!delta) return 0;
   const result = applyPointDelta(rewards, delta);
@@ -38,12 +50,14 @@ function changePoints(delta) {
 
 function settleExpiredTasks() {
   const result = failExpiredTasks(tasks);
-  if (!result.failedIds.length) return;
+  if (!result.failedIds.length) return false;
   tasks = result.tasks;
   const milestoneCount = changePoints(result.pointsDelta);
   saveTasks();
-  showNotice(`Timer ended. ${result.failedIds.length === 1 ? '100 points were' : `${result.failedIds.length * 100} points were`} deducted.`, 'failure');
+  showOutcomeMessage('OOPS! THE TIMER HAS RUN OUT...BETTER LUCK NEXT TIME!', 'failure');
+  showNotice(`${Math.abs(result.pointsDelta)} points deducted after the timer ended.`, 'failure');
   if (milestoneCount) showNotice(`You also reached a ${milestoneCount > 1 ? `${milestoneCount} × ` : ''}1,000-point milestone. Demo rewards earned: ₹${milestoneCount * 30}.`, 'success');
+  return true;
 }
 
 function remainingTime(task) {
@@ -78,10 +92,11 @@ function render() {
   $('#list-heading').innerHTML = `${currentFilter === 'active' ? 'In progress' : currentFilter === 'completed' ? 'Completed' : 'All tasks'} <span>${visibleTasks.length}</span>`;
 
   $('#membership-status').textContent = activeMember ? 'Demo membership active' : trialTasksRemaining ? `Free trial · ${trialTasksRemaining} tasks left` : rewards.membershipExpiresAt ? 'Membership expired' : 'Free trial complete';
-  $('#membership-expiry').textContent = activeMember ? `Active until ${formatDate(rewards.membershipExpiresAt)}` : trialTasksRemaining ? 'Create your first 10 timed tasks free.' : 'Activate the ₹50 demo membership to add more tasks.';
-  $('#membership-button').textContent = activeMember ? 'Extend demo month · ₹50' : 'Activate demo plan · ₹50';
+  $('#membership-expiry').textContent = activeMember ? `Active until ${formatDate(rewards.membershipExpiresAt)}` : trialTasksRemaining ? 'Create your first 10 timed tasks free.' : 'Activate the ₹99 demo membership to add more tasks.';
+  $('#membership-button').textContent = activeMember ? 'Extend demo month · ₹99' : 'Activate demo plan · ₹99';
   $('#task-input').disabled = !canCreateTask;
   $('#task-duration').disabled = !canCreateTask;
+  customDurationInput.disabled = !canCreateTask;
   $('#task-form').querySelector('.add-button').disabled = !canCreateTask;
   $('#task-form').classList.toggle('membership-locked', !canCreateTask);
 
@@ -93,7 +108,7 @@ function render() {
 
   list.replaceChildren(...visibleTasks.map(task => {
     const row = document.createElement('li');
-    row.className = `task-row${task.completed ? ' is-complete' : ''}${task.outcome === 'failed' || task.outcome === 'late' ? ' is-missed' : ''}`;
+    row.className = `task-row${task.completed ? ' is-complete' : ''}${task.outcome === 'pending' ? ' is-running' : ''}${task.outcome === 'failed' || task.outcome === 'late' ? ' is-missed' : ''}`;
     const check = document.createElement('input');
     check.className = 'check-button'; check.type = 'checkbox'; check.checked = task.completed;
     check.disabled = ['success', 'failed', 'late'].includes(task.outcome);
@@ -104,8 +119,9 @@ function render() {
         tasks = result.tasks;
         const milestoneCount = changePoints(result.pointsDelta);
         saveTasks();
-        if (result.pointsDelta > 0) showNotice('Task completed on time: +100 points.', 'success');
-        else if (result.pointsDelta < 0) showNotice('Task completed after its timer: −100 points.', 'failure');
+        if (result.pointsDelta > 0) showOutcomeMessage('CONGRATULATIONS!! YOU HAVE COMPLETED THE TASK!! +100 POINTS 🎉', 'success');
+        else if (result.pointsDelta < 0) showOutcomeMessage('OOPS! THE TIMER HAS RUN OUT...BETTER LUCK NEXT TIME!', 'failure');
+        if (result.pointsDelta < 0) showNotice('500 points deducted after the timer ended.', 'failure');
         if (milestoneCount) showNotice(`Milestone reached: ${milestoneCount * 30} demo rupees earned.`, 'success');
       } else {
         tasks = toggleTask(tasks, task.id);
@@ -115,11 +131,11 @@ function render() {
     });
 
     const title = document.createElement('span'); title.className = 'task-title'; title.textContent = task.title;
-    const timer = document.createElement('span'); timer.className = `task-timer${task.outcome === 'pending' && remainingTime(task) < 60_000 ? ' timer-urgent' : ''}`;
+    const timer = document.createElement('span'); timer.dataset.taskTimer = task.id; timer.className = `task-timer${task.outcome === 'pending' && remainingTime(task) < 60_000 ? ' timer-urgent' : ''}`;
     if (task.outcome === 'pending') timer.textContent = `◷ ${formatTimer(remainingTime(task))}`;
     else if (task.outcome === 'success') timer.textContent = 'On time · +100 pts';
-    else if (task.outcome === 'failed') timer.textContent = 'Time expired · −100 pts';
-    else if (task.outcome === 'late') timer.textContent = 'Finished late · −100 pts';
+    else if (task.outcome === 'failed') timer.textContent = 'Time expired · −500 pts';
+    else if (task.outcome === 'late') timer.textContent = 'Finished late · −500 pts';
     else timer.textContent = 'Existing task · no points';
 
     const date = document.createElement('span'); date.className = `task-date${isToday(task.createdAt) ? ' today' : ''}`; date.textContent = isToday(task.createdAt) ? 'Today' : formatDate(task.createdAt);
@@ -143,6 +159,16 @@ function render() {
 
 function setFilter(filter) { currentFilter = filter; render(); }
 
+function updateTaskTimers() {
+  document.querySelectorAll('[data-task-timer]').forEach(timer => {
+    const task = tasks.find(item => item.id === timer.dataset.taskTimer);
+    if (!task || task.outcome !== 'pending') return;
+    const remaining = remainingTime(task);
+    timer.textContent = `◷ ${formatTimer(remaining)}`;
+    timer.classList.toggle('timer-urgent', remaining < 60_000);
+  });
+}
+
 function isToday(value) {
   const date = new Date(value), now = new Date();
   return !Number.isNaN(date.valueOf()) && date.toDateString() === now.toDateString();
@@ -155,9 +181,15 @@ function formatDate(value) {
 form.addEventListener('submit', event => {
   event.preventDefault();
   const activeMember = hasActiveMembership(rewards);
-  if (!activeMember && rewards.trialTasksUsed >= FREE_TASK_LIMIT) { showNotice('Your 10 free tasks are used. Activate the ₹50 demo membership to keep going.'); return; }
+  if (!activeMember && rewards.trialTasksUsed >= FREE_TASK_LIMIT) { showNotice('Your 10 free tasks are used. Activate the ₹99 demo membership to keep going.'); return; }
   if (!input.value.trim()) { input.focus(); return; }
-  tasks = addTask(tasks, input.value, new Date(), Number(durationInput.value));
+  const selectedDuration = durationInput.value === 'custom' ? Number(customDurationInput.value) : Number(durationInput.value);
+  if (!Number.isInteger(selectedDuration) || selectedDuration < 1 || selectedDuration > 1440) {
+    showNotice('Choose a custom timer from 1 minute to 24 hours.', 'failure');
+    customDurationInput.focus();
+    return;
+  }
+  tasks = addTask(tasks, input.value, new Date(), selectedDuration);
   if (!activeMember) rewards = { ...rewards, trialTasksUsed: rewards.trialTasksUsed + 1 };
   currentFilter = 'all';
   input.value = '';
@@ -171,6 +203,13 @@ $('#membership-button').addEventListener('click', () => {
   showNotice('Demo membership active for one month. No payment was charged.', 'success');
 });
 
+durationInput.addEventListener('change', () => {
+  const customSelected = durationInput.value === 'custom';
+  customDurationInput.hidden = !customSelected;
+  customDurationInput.required = customSelected;
+  if (customSelected) customDurationInput.focus();
+});
+
 document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => setFilter(button.dataset.filter)));
 $('#clear-completed').addEventListener('click', () => { tasks = clearCompleted(tasks); saveTasks(); render(); });
 window.addEventListener('storage', event => {
@@ -181,4 +220,9 @@ window.addEventListener('storage', event => {
 
 settleExpiredTasks();
 render();
-window.setInterval(() => { settleExpiredTasks(); render(); }, 1000);
+window.setInterval(() => {
+  if (settleExpiredTasks()) render();
+  else updateTaskTimers();
+}, 1000);
+
+

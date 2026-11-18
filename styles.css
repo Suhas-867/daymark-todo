@@ -17,3 +17,28 @@
 .reward-notice{max-width:900px;width:100%;margin:0 auto 12px;padding:9px 12px;border-radius:7px;font-size:10px;background:#f0efff;color:#5d58bb}.reward-notice[hidden]{display:none}.notice-success{background:#edf8f2;color:#39775e}.notice-failure{background:#fff1f2;color:#a75360}
 .composer.membership-locked{opacity:.55}.composer input:disabled,.timer-select:disabled,.add-button:disabled{cursor:not-allowed}.timer-select{flex:none;border:1px solid #eceef4;border-radius:6px;background:#fff;color:#6d7282;padding:7px 6px;font-size:10px;margin-right:10px}.task-timer{flex:none;min-width:120px;text-align:right;font-size:9px;color:#7571d1;font-weight:600;white-space:nowrap}.task-timer.timer-urgent,.task-row.is-missed .task-timer{color:#c26770}.task-row.is-missed .task-title{color:#858b98}.task-row .check-button:disabled{opacity:.6;cursor:not-allowed}
 @media(max-width:760px){.membership-panel{align-items:flex-start;flex-wrap:wrap;padding:15px}.membership-copy{flex:1 1 100%}.membership-state{flex:1}.membership-button{margin-left:auto}.rewards-panel{grid-template-columns:1fr 1fr;gap:14px;padding:14px}.milestone-stat{grid-column:1 / -1;grid-row:2}.reward-earned{text-align:right}.future-plan{align-items:flex-start}.roadmap-tag{font-size:7px}.task-timer{min-width:82px;text-align:left}.timer-select{margin-right:5px;padding:7px 2px}.composer{gap:0}.composer input{font-size:11px}}
+
+/* Focus Club trial polish, task pulse, and temporary outcome moments */
+body{background:radial-gradient(ellipse at 90% 0%,#eeecff 0,transparent 32%),#f5f6fc}
+.membership-panel{background:linear-gradient(120deg,#fff 45%,#f5f2ff);border-color:#e5e1ff;box-shadow:0 12px 35px rgba(74,63,150,.08)}
+.rewards-panel{box-shadow:0 8px 25px rgba(47,58,115,.06)}
+.membership-button,.add-button{background:linear-gradient(135deg,#6964df,#8a72eb);box-shadow:0 7px 15px rgba(96,82,205,.18)}
+.task-row.is-running{animation:taskHeartbeat 1.35s ease-in-out infinite}
+.task-row.is-missed,.task-row.is-complete{animation:none!important}
+@keyframes taskHeartbeat{0%,100%{background:#fff;box-shadow:inset 3px 0 0 rgba(117,111,226,.14)}50%{background:#faf9ff;box-shadow:inset 3px 0 0 rgba(117,111,226,.72)}}
+.outcome-overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:22px;background:rgba(31,27,61,.28);backdrop-filter:blur(5px);animation:overlayAppear .24s ease-out}
+.outcome-overlay[hidden]{display:none}
+.outcome-overlay strong{max-width:min(780px,84vw);padding:34px 42px;border:1px solid rgba(255,255,255,.85);border-radius:28px;background:linear-gradient(145deg,#fff,#f6f1ff);box-shadow:0 25px 90px rgba(33,25,93,.28);color:#5147bb;text-align:center;font:800 clamp(25px,4vw,48px)/1.16 Manrope,sans-serif;letter-spacing:-1.2px;animation:messagePop .42s cubic-bezier(.18,.8,.25,1.2)}
+.outcome-failure strong{color:#a9475a;background:linear-gradient(145deg,#fff,#fff0f1)}
+.party-popper{position:absolute;top:50%;font-size:clamp(38px,7vw,82px);white-space:nowrap;filter:drop-shadow(0 9px 16px rgba(49,37,104,.2));animation:popperFromSide .72s cubic-bezier(.15,.8,.3,1.2) both}
+.party-popper-left{left:2vw;--popper-x:-100px;--popper-rotate:-30deg}
+.party-popper-right{right:2vw;--popper-x:100px;--popper-rotate:30deg;animation-delay:.08s}
+@keyframes popperFromSide{from{opacity:0;transform:translate(var(--popper-x),-50%) rotate(var(--popper-rotate)) scale(.45)}to{opacity:1;transform:translate(0,-50%) rotate(0) scale(1)}}
+@keyframes overlayAppear{from{opacity:0}to{opacity:1}}
+@keyframes messagePop{from{opacity:0;transform:scale(.78) translateY(15px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.custom-duration{width:96px;flex:none;border:1px solid #eceef4;border-radius:6px;background:#fff;color:#6d7282;padding:7px 8px;font-size:10px;margin-right:8px}
+.custom-duration:focus{outline:2px solid rgba(105,101,220,.26);border-color:#aaa5f1}
+.custom-duration:disabled{cursor:not-allowed}
+@media(max-width:760px){.outcome-overlay strong{padding:28px 22px;max-width:78vw}.party-popper-left{left:-8px}.party-popper-right{right:-8px}.custom-duration{width:78px;margin-right:4px}}
+@media(prefers-reduced-motion:reduce){.task-row.is-running,.party-popper,.outcome-overlay strong{animation:none!important}}
+.points-reset-note{display:block;margin-top:4px;color:#9a9eaa;font-size:9px;letter-spacing:0}

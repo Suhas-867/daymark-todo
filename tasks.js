@@ -25,7 +25,7 @@ export function completeTimedTask(tasks, id, now = new Date()) {
     if (task.id !== id || task.outcome !== 'pending' || task.completed) return task;
     const deadline = Date.parse(task.deadlineAt);
     const onTime = Number.isFinite(deadline) && now.getTime() < deadline;
-    pointsDelta = onTime ? 100 : -100;
+    pointsDelta = onTime ? 100 : -500;
     return { ...task, completed: true, outcome: onTime ? 'success' : 'late' };
   });
   return { tasks: updated, pointsDelta };
@@ -40,7 +40,7 @@ export function failExpiredTasks(tasks, now = new Date()) {
     failedIds.push(task.id);
     return { ...task, outcome: 'failed' };
   });
-  return { tasks: updated, failedIds, pointsDelta: failedIds.length * -100 };
+  return { tasks: updated, failedIds, pointsDelta: failedIds.length * -500 };
 }
 
 export function deleteTask(tasks, id) {

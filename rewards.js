@@ -17,8 +17,8 @@ export function loadRewards(storage) {
       membershipStartedAt: typeof parsed.membershipStartedAt === 'string' ? parsed.membershipStartedAt : null,
       membershipExpiresAt: typeof parsed.membershipExpiresAt === 'string' ? parsed.membershipExpiresAt : null,
       trialTasksUsed: Number.isFinite(parsed.trialTasksUsed) ? Math.max(0, Math.trunc(parsed.trialTasksUsed)) : 0,
-      points: Number.isFinite(parsed.points) ? Math.trunc(parsed.points) : 0,
-      milestonesReached: Number.isFinite(parsed.milestonesReached) ? Math.max(0, Math.trunc(parsed.milestonesReached)) : 0,
+      points: 0,
+      milestonesReached: 0,
       demoRupeesEarned: Number.isFinite(parsed.demoRupeesEarned) ? Math.max(0, Math.trunc(parsed.demoRupeesEarned)) : 0
     };
   } catch {
