@@ -1,11 +1,12 @@
 export const REWARDS_KEY = 'daymark.learning.demo-rewards.v1';
+export const FREE_TASK_LIMIT = 10;
 
 const MEMBERSHIP_DAYS = 30;
 const POINTS_PER_MILESTONE = 1000;
 const DEMO_REWARD_RUPEES = 30;
 
 export function emptyRewards() {
-  return { membershipStartedAt: null, membershipExpiresAt: null, points: 0, milestonesReached: 0, demoRupeesEarned: 0 };
+  return { membershipStartedAt: null, membershipExpiresAt: null, trialTasksUsed: 0, points: 0, milestonesReached: 0, demoRupeesEarned: 0 };
 }
 
 export function loadRewards(storage) {
@@ -15,6 +16,7 @@ export function loadRewards(storage) {
     return {
       membershipStartedAt: typeof parsed.membershipStartedAt === 'string' ? parsed.membershipStartedAt : null,
       membershipExpiresAt: typeof parsed.membershipExpiresAt === 'string' ? parsed.membershipExpiresAt : null,
+      trialTasksUsed: Number.isFinite(parsed.trialTasksUsed) ? Math.max(0, Math.trunc(parsed.trialTasksUsed)) : 0,
       points: Number.isFinite(parsed.points) ? Math.trunc(parsed.points) : 0,
       milestonesReached: Number.isFinite(parsed.milestonesReached) ? Math.max(0, Math.trunc(parsed.milestonesReached)) : 0,
       demoRupeesEarned: Number.isFinite(parsed.demoRupeesEarned) ? Math.max(0, Math.trunc(parsed.demoRupeesEarned)) : 0

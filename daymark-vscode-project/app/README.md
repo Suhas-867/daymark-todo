@@ -4,6 +4,7 @@ A browser-based task manager and presentation prototype for exploring a timed-ta
 
 ## Demo plan
 
+- First 10 timed tasks are free; the trial counter remains after deleting tasks. Then membership activation is required to add more.
 - Membership: ₹50 for 30 days.
 - Complete a timed task before its deadline: +100 points.
 - Miss a timer: −100 points, applied once.
@@ -27,8 +28,8 @@ Port `8001` lets this copy run beside the original app on port `8000`.
 
 ## Judge presentation flow
 
-1. Activate the one-month demo membership and point out the no-payment notice.
-2. Add a one-minute task and show its countdown.
+1. Add timed tasks and show the free-trial counter decrease from 10.
+2. Show the membership prompt after the 10th task; activate the one-month demo membership and point out the no-payment notice.
 3. Complete one task on time for +100 points; let another timer expire to demonstrate the −100 result.
 4. Explain that the ₹30 reward appears in the demo for each 1,000-point milestone and is not paid out.
 5. Show the **Future Plan** card for proposed AI-assisted proof review.

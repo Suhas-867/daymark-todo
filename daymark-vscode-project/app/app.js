@@ -1,5 +1,5 @@
 import { STORAGE_KEY, addTask, clearCompleted, completeTimedTask, deleteTask, failExpiredTasks, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
-import { REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js';
+import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js';
 
 const $ = selector => document.querySelector(selector);
 const list = $('#task-list');
@@ -61,6 +61,8 @@ function render() {
   const counts = progress(tasks);
   const open = tasks.filter(task => !task.completed).length;
   const activeMember = hasActiveMembership(rewards);
+  const trialTasksRemaining = Math.max(0, FREE_TASK_LIMIT - rewards.trialTasksUsed);
+  const canCreateTask = activeMember || trialTasksRemaining > 0;
   const milestone = milestoneProgress(rewards);
 
   $('#all-count').textContent = counts.total;
@@ -76,13 +78,13 @@ function render() {
   $('#clear-completed').hidden = counts.completed === 0;
   $('#list-heading').innerHTML = `${currentFilter === 'active' ? 'In progress' : currentFilter === 'completed' ? 'Completed' : 'All tasks'} <span>${visibleTasks.length}</span>`;
 
-  $('#membership-status').textContent = activeMember ? 'Demo membership active' : rewards.membershipExpiresAt ? 'Membership expired' : 'Not active';
-  $('#membership-expiry').textContent = activeMember ? `Active until ${formatDate(rewards.membershipExpiresAt)}` : 'Try the one-month demo plan.';
+  $('#membership-status').textContent = activeMember ? 'Demo membership active' : trialTasksRemaining ? `Free trial · ${trialTasksRemaining} tasks left` : rewards.membershipExpiresAt ? 'Membership expired' : 'Free trial complete';
+  $('#membership-expiry').textContent = activeMember ? `Active until ${formatDate(rewards.membershipExpiresAt)}` : trialTasksRemaining ? 'Create your first 10 timed tasks free.' : 'Activate the ₹50 demo membership to add more tasks.';
   $('#membership-button').textContent = activeMember ? 'Extend demo month · ₹50' : 'Activate demo plan · ₹50';
-  $('#task-input').disabled = !activeMember;
-  $('#task-duration').disabled = !activeMember;
-  $('#task-form').querySelector('.add-button').disabled = !activeMember;
-  $('#task-form').classList.toggle('membership-locked', !activeMember);
+  $('#task-input').disabled = !canCreateTask;
+  $('#task-duration').disabled = !canCreateTask;
+  $('#task-form').querySelector('.add-button').disabled = !canCreateTask;
+  $('#task-form').classList.toggle('membership-locked', !canCreateTask);
 
   $('#points-total').textContent = rewards.points;
   $('#milestone-copy').textContent = `${milestone.points.toLocaleString()} / ${milestone.target.toLocaleString()} points`;
@@ -153,12 +155,14 @@ function formatDate(value) {
 
 form.addEventListener('submit', event => {
   event.preventDefault();
-  if (!hasActiveMembership(rewards)) { showNotice('Activate the demo membership before adding a timed task.'); return; }
+  const activeMember = hasActiveMembership(rewards);
+  if (!activeMember && rewards.trialTasksUsed >= FREE_TASK_LIMIT) { showNotice('Your 10 free tasks are used. Activate the ₹50 demo membership to keep going.'); return; }
   if (!input.value.trim()) { input.focus(); return; }
   tasks = addTask(tasks, input.value, new Date(), Number(durationInput.value));
+  if (!activeMember) rewards = { ...rewards, trialTasksUsed: rewards.trialTasksUsed + 1 };
   currentFilter = 'all';
   input.value = '';
-  saveTasks(); render(); input.focus();
+  saveTasks(); saveRewards(); render(); input.focus();
 });
 
 $('#membership-button').addEventListener('click', () => {
