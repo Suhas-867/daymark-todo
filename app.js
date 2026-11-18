@@ -1,10 +1,11 @@
 import { STORAGE_KEY, addTask, clearCompleted, completeTimedTask, deleteTask, failExpiredTasks, filterTasks, loadTasks, progress, toggleTask } from './tasks.js';
-import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=party-2';
+import { FREE_TASK_LIMIT, REWARDS_KEY, applyPointDelta, extendDemoMembership, hasActiveMembership, loadRewards, milestoneProgress } from './rewards.js?v=party-3';
 
 const $ = selector => document.querySelector(selector);
 const list = $('#task-list');
 const form = $('#task-form');
 const input = $('#task-input');
+const trialLockMessage = $('#trial-lock-message');
 const durationInput = $('#task-duration');
 const customDurationInput = $('#custom-duration');
 const emptyState = $('#empty-state');
@@ -99,6 +100,8 @@ function render() {
   customDurationInput.disabled = !canCreateTask;
   $('#task-form').querySelector('.add-button').disabled = !canCreateTask;
   $('#task-form').classList.toggle('membership-locked', !canCreateTask);
+  trialLockMessage.hidden = canCreateTask;
+  input.placeholder = canCreateTask ? 'What needs to get done?' : 'Membership required to add tasks';
 
   $('#points-total').textContent = rewards.points;
   $('#milestone-copy').textContent = `${milestone.points.toLocaleString()} / ${milestone.target.toLocaleString()} points`;

@@ -11,7 +11,7 @@ Daymark is a responsive task manager built for a CDD minor project. It lets you 
 - See task counts and a live completion progress indicator.
 - Keep tasks after closing and reopening the browser using `localStorage`.
 - Use the responsive layout on desktop and mobile.
-- Create the first 10 timed tasks free; after that, activate the one-month membership to continue.
+- Create the first 10 timed tasks free; after task 10, task entry and timer controls are disabled until the one-month membership is activated.
 - Explore the Focus Club demo: ₹99 for 30 days, timed tasks, and a points balance.
 - Earn 100 points for an on-time task, lose 500 for a missed timer, and see a ₹30 demo reward at each 1,000-point milestone.
 - Choose a custom timer from 1 minute to 24 hours; the points balance resets to 0 on refresh.
@@ -75,7 +75,7 @@ rewards.js                 Demo membership, points, and milestone calculations
 
 ## Membership and rewards demo
 
-Create the first 10 timed tasks free, with a 1, 5, 15, or 30 minute timer, one hour, or a custom duration up to 24 hours. This lifetime trial counter remains after deleting tasks. After the trial, activate the ₹99 one-month demo membership to continue. Complete a task before its timer expires to earn 100 points. When a timer expires, the app deducts 500 points once. The current points balance resets to 0 on refresh, while membership and demo reward history remain saved. Every 1,000-point balance milestone adds ₹30 to the demo reward total. Demo points and membership state stay in this browser; they are not cash, a payment, or a payout.
+Create the first 10 timed tasks free, with a 1, 5, 15, or 30 minute timer, one hour, or a custom duration up to 24 hours. After task 10, the task input and timer controls are disabled until membership is activated. This lifetime trial counter remains after deleting tasks. After the trial, activate the ₹99 one-month demo membership to continue. Complete a task before its timer expires to earn 100 points. When a timer expires, the app deducts 500 points once. The current points balance resets to 0 on refresh, while membership and demo reward history remain saved. Every 1,000-point balance milestone adds ₹30 to the demo reward total. Demo points and membership state stay in this browser; they are not cash, a payment, or a payout.
 
 The **Future Plan** card describes optional proof uploads and AI-assisted review. It is shown as a roadmap idea only; this build does not upload files or check proof with AI.
 
