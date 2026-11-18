@@ -59,7 +59,7 @@ function formatTimer(milliseconds) {
 function render() {
   const visibleTasks = filterTasks(tasks, currentFilter);
   const counts = progress(tasks);
-  const open = tasks.filter(task => !task.completed && task.outcome !== 'failed').length;
+  const open = tasks.filter(task => !task.completed).length;
   const activeMember = hasActiveMembership(rewards);
   const milestone = milestoneProgress(rewards);
 
