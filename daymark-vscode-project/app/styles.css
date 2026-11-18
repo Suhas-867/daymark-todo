@@ -42,3 +42,5 @@ body{background:radial-gradient(ellipse at 90% 0%,#eeecff 0,transparent 32%),#f5
 @media(max-width:760px){.outcome-overlay strong{padding:28px 22px;max-width:78vw}.party-popper-left{left:-8px}.party-popper-right{right:-8px}.custom-duration{width:78px;margin-right:4px}}
 @media(prefers-reduced-motion:reduce){.task-row.is-running,.party-popper,.outcome-overlay strong{animation:none!important}}
 .points-reset-note{display:block;margin-top:4px;color:#9a9eaa;font-size:9px;letter-spacing:0}
+
+.trial-lock-message{margin:9px 0 0;padding:11px 14px;border:1px solid #efd7a5;border-radius:9px;background:linear-gradient(120deg,#fff7e9,#fffaf2);color:#8a5b17;font-size:12px;font-weight:700;line-height:1.5;box-shadow:0 5px 16px rgba(146,102,24,.07)}.trial-lock-message[hidden]{display:none}

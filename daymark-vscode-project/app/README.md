@@ -4,10 +4,10 @@ A browser-based task manager and presentation prototype for exploring a timed-ta
 
 ## Demo plan
 
-- First 10 timed tasks are free; the trial counter remains after deleting tasks. Then membership activation is required to add more.
+- First 10 timed tasks are free; after task 10, task entry and timer controls are disabled until membership activation. The trial counter remains after deleting tasks.
 - Membership: ₹99 for 30 days.
-- Complete a timed task before its deadline: +100 points.
-- Miss a timer: −500 points, applied once.
+- Complete a timed task before its deadline: +100 points, with a temporary celebration overlay and party poppers.
+- Miss a timer: −500 points, applied once, with a temporary timeout message.
 - The current points balance resets to 0 on refresh.
 - Set a custom timer from 1 minute up to 24 hours.
 - Reach each 1,000-point milestone: add a ₹30 demo reward.
