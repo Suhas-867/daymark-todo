@@ -14,12 +14,13 @@ export function loadRewards(storage) {
     const parsed = JSON.parse(storage.getItem(REWARDS_KEY) || 'null');
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return emptyRewards();
     return {
-      membershipStartedAt: typeof parsed.membershipStartedAt === 'string' ? parsed.membershipStartedAt : null,
-      membershipExpiresAt: typeof parsed.membershipExpiresAt === 'string' ? parsed.membershipExpiresAt : null,
+      // Membership and demo earnings belong to the current page session only.
+      membershipStartedAt: null,
+      membershipExpiresAt: null,
       trialTasksUsed: Number.isFinite(parsed.trialTasksUsed) ? Math.max(0, Math.trunc(parsed.trialTasksUsed)) : 0,
       points: 0,
       milestonesReached: 0,
-      demoRupeesEarned: Number.isFinite(parsed.demoRupeesEarned) ? Math.max(0, Math.trunc(parsed.demoRupeesEarned)) : 0
+      demoRupeesEarned: 0
     };
   } catch {
     return emptyRewards();
@@ -32,6 +33,7 @@ export function hasActiveMembership(rewards, now = new Date()) {
 }
 
 export function extendDemoMembership(rewards, now = new Date()) {
+  if (hasActiveMembership(rewards, now)) return { ...rewards };
   const currentExpiry = Date.parse(rewards.membershipExpiresAt || '');
   const base = Number.isFinite(currentExpiry) ? Math.max(currentExpiry, now.getTime()) : now.getTime();
   return {
