@@ -4,11 +4,11 @@ A browser-based task manager and presentation prototype for exploring a timed-ta
 
 ## Demo plan
 
-- First 10 timed tasks are free; the trial counter remains after deleting tasks. Then membership activation is required to add more.
+- First 10 timed tasks are free; after task 10, task entry and timer controls are disabled until membership activation. The trial counter remains after deleting tasks.
 - Membership: ₹99 for 30 days.
 - Complete a timed task before its deadline: +100 points, with a temporary celebration overlay and party poppers.
 - Miss a timer: −500 points, applied once, with a temporary timeout message.
-- The current points balance resets to 0 on refresh.
+- Points and earned demo rewards reset to 0 on refresh; demo membership resets on refresh, and its active-until date stays fixed when Extend is clicked during the current page session.
 - Set a custom timer from 1 minute up to 24 hours.
 - Reach each 1,000-point milestone: add a ₹30 demo reward.
 - AI-assisted proof upload and review: future plan only; not implemented.
@@ -44,5 +44,5 @@ Port `8001` lets this copy run beside the original app on port `8000`.
 - `tests/tasks.test.js` — task behavior tests.
 - `.github/workflows/ci.yml` — checks the project on pushes and pull requests.
 
-Tasks, demo membership, points, and reward milestones remain in this browser's local storage. No payment or payout service is connected.
+Tasks and the free-trial counter remain in this browser's local storage. Points, earned demo rewards, and demo membership reset on refresh. No payment or payout service is connected.
 
