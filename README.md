@@ -41,9 +41,9 @@ This is what GitHub Pages serves. No setup. Accounts, tasks, proof images and th
 - The AI check runs in your browser: a quality check (sharpness, contrast, exposure, duplicates) plus the MobileCLIP model, which compares the photo with descriptions built from the task text (several phrasings per description, several crops per photo, and built-in knowledge of everyday tasks such as making a bed, washing dishes or reading). The model is about 66 MB; it starts loading in the background a few seconds after sign-in on a decent connection (about 20 seconds on a fast one) and the browser caches it afterwards. The photo never leaves the device. It is still an assistive check: it can be fooled by an unrelated photo that happens to look similar, so unclear results go to an admin.
 - Data stays on that one device. Use **Reset demo data** in the admin console to start fresh.
 
-### 2. Live mode (real accounts, cloud sync, real messages)
+### 2. Online mode (customers and admin on different devices)
 
-Fill in `firebase-config.js` and deploy the backend in `functions/`. The same screens then use Firebase Authentication, Firestore, Storage and Cloud Functions (OpenAI vision for the AI review, SMTP for email, Twilio for SMS). See [SETUP.md](SETUP.md). No keys are stored in this repository.
+Fill in `firebase-config.js` with your free Firebase project's web config and publish the security rules in `firestore.rules` (about 15 minutes, no credit card; see [SETUP.md](SETUP.md)). The same screens then store accounts, tasks and proof photos in a shared online database: a customer submits a proof on their phone and the admin console on your device shows it instantly; approving it awards the points on the customer's device. No keys or secrets are stored in this repository.
 
 ## Run locally
 
@@ -69,15 +69,16 @@ ai-review.js                 Photo quality and duplicate check
 ai-vision.js                 Task understanding, descriptions and the approve / reject / human decision
 vision-runtime.js            MobileCLIP model loading and embeddings (browser)
 access-config.js, sha256.js  Hashed administrator email list
-cloud-backend.js             Firebase backend adapter (Auth, Firestore, Storage, Functions)
+firestore-backend.js          Online backend (Firebase Auth + Firestore, free plan)
+firestore-review.js           Shared approve/reject logic used by the app and the admin console
+firebase-loader.js            Loads the Firebase web SDK
 firebase-config.js           Public Firebase web config (placeholders)
 messaging-config.js          Public EmailJS ids and the email safety limits
 email-service.js             Sends email through the EmailJS REST API
 sms-service.js               Sends text messages through the relay
 worker/                      Cloudflare Worker relay for Twilio (secrets stay server-side)
-admin/                       Admin website: admin-demo.js (live demo) and admin-cloud.js (Firebase)
-functions/                   Cloud Functions: AI review, points, reminders, admin role
-firestore.rules, storage.rules, firebase.json   Firebase security rules and deployment
+admin/                       Admin website: admin-view.js (shared screens), admin-demo.js (one browser) and admin-firestore.js (live, any device)
+firestore.rules, firebase.json   Firebase security rules and deployment
 rewards.js, tasks.js         Scoring and task helpers used by the app and the tests
 tests/                       Automated tests (npm test)
 ```
@@ -85,7 +86,7 @@ tests/                       Automated tests (npm test)
 ## Limits to be upfront about
 
 - Payments and cash payouts do not exist; ₹99 and ₹30 are demonstration values.
-- Demo mode is not secure storage: passwords are hashed in the browser and everything lives on that device. Live mode needs the Firebase setup.
+- Demo mode is not secure storage: passwords are hashed in the browser and everything lives on that device, so the admin cannot see customers on other devices. Online mode fixes that; its limits (no server code, so a technical user could alter their own score) are listed in SETUP.md.
 - AI review is an assistive check, not proof of completion. Uncertain cases go to a human admin.
 
 ## Ideas for next steps

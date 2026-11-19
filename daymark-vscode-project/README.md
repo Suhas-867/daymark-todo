@@ -49,9 +49,9 @@ Everything is a prototype: no payments, no payouts. Verified emails are really s
 | `ai-vision.js`, `vision-runtime.js` | MobileCLIP vision model: does the photo match the task? Descriptions, decision rules and model loading |
 | `access-config.js`, `sha256.js` | Hashed administrator list and a tiny SHA-256 |
 | `local-db.js` | A tiny database with live updates across browser tabs |
-| `demo-backend.js`, `cloud-backend.js` | The same adapter interface over localStorage or Firebase |
+| `demo-backend.js`, `firestore-backend.js` | The same adapter interface over localStorage or Firebase (shared online) |
+| `firestore-review.js`, `firestore.rules` | One transaction settles a proof; the rules decide who may read and write what |
 | `user-app.js` | One dashboard controller that works with either backend |
-| `admin/admin-demo.js` | The live review console |
-| `functions/index.js` | The production backend: AI vision, points, scheduled reminders |
+| `admin/admin-view.js`, `admin-demo.js`, `admin-firestore.js` | The review console: shared screens, one-browser demo, live across devices |
 
-See `SETUP.md` to connect real Firebase accounts, cloud sync, email and SMS.
+See `SETUP.md` to connect a free Firebase project so the admin sees customers on other devices.

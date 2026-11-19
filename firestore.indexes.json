@@ -1,1 +1,4 @@
-{"indexes":[{"collectionGroup":"reviewQueue","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"submittedAt","order":"DESCENDING"}]}],"fieldOverrides":[]}
+{
+  "indexes": [],
+  "fieldOverrides": []
+}

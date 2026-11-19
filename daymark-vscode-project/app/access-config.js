@@ -8,6 +8,11 @@
 //
 // Honest limit: demo mode keeps all data in each visitor's own browser, so this is a convenience check,
 // not security. Real admin enforcement needs the Firebase backend (custom `admin` claim, see SETUP.md).
+import { sha256Hex } from './sha256.js';
+
 export const adminEmailHashes = Object.freeze([
   '16c229a354223dda5a04a8de3c76c443896d1940b985e544866ce3a74daef738'
 ]);
+
+/** True for the administrator addresses listed (hashed) above. */
+export const isAdminEmail = email => Boolean(email) && adminEmailHashes.includes(sha256Hex(String(email).trim().toLowerCase()));

@@ -4,8 +4,9 @@
 // passwords are only hashed client-side and email/SMS are simulated in an outbox.
 import { FREE_TASK_LIMIT, applyPointDelta, emptyRewards, extendDemoMembership, hasActiveMembership } from './rewards.js';
 import { emailLimits, smsLimits } from './messaging-config.js';
-import { adminEmailHashes } from './access-config.js';
+import { isAdminEmail } from './access-config.js';
 import { sha256Hex } from './sha256.js';
+export { isAdminEmail };
 
 export const DB_KEY = 'daymark.demo.db.v1';
 export const SESSION_KEY = 'daymark.demo.session.v1';
@@ -19,8 +20,6 @@ const emptyDb = () => ({ v: 1, users: {}, tasks: {}, sessions: {}, queue: {}, ou
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-/** True for the administrator addresses listed (hashed) in access-config.js. */
-export const isAdminEmail = email => Boolean(email) && adminEmailHashes.includes(sha256Hex(String(email).trim().toLowerCase()));
 
 export class DemoError extends Error {}
 const fail = message => { throw new DemoError(message); };

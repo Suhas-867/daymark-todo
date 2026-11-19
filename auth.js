@@ -64,6 +64,7 @@ $('reset-send').addEventListener('click', async () => {
   const button = $('reset-send'); button.disabled = true; resetMessage('Sending…');
   try {
     const result = await backend.requestPasswordReset($('reset-email').value);
+    if (result.byLink) { $('reset-step2').hidden = true; $('reset-copy').textContent = `We emailed a password reset link to ${result.target}. Open it to choose a new password, then sign in here.`; resetMessage('Link sent. Check your inbox and spam folder.', 'ok'); return; }
     $('reset-step2').hidden = false; button.textContent = 'Send a new code'; $('reset-code').focus();
     $('reset-copy').textContent = result.delivered ? `We emailed a 6-digit code to ${result.target}. It can take a minute; check spam too.` : `Local development: nothing was sent to ${result.target}. Your test code is ${result.devCode}.`;
     resetMessage('Enter the code and choose a new password.', 'ok');
@@ -95,14 +96,8 @@ async function boot() {
   setMode(true); updateExtraLabel();
   try {
     if (firebaseReady) {
-      const { createCloudBackend } = await import('./cloud-backend.js'); backend = await createCloudBackend();
-      $('phone-auth').hidden = false;
-      $('phone-send').addEventListener('click', async () => {
-        try { await backend.startPhone($('auth-phone').value || $('auth-email').value, { smsReminders: $('consent-sms').checked }); $('phone-code-row').hidden = false; setStatus('Verification code sent. Check your phone.', 'ok'); }
-        catch (error) { setStatus(error.message, 'error'); }
-      });
-      $('phone-verify').addEventListener('click', async () => { try { await backend.confirmPhone($('phone-code').value); setStatus('Phone verified. Opening Daymark…', 'ok'); } catch (error) { setStatus(error.message, 'error'); } });
-      $('config-note').textContent = 'Secure sign-in is powered by your Firebase project.';
+      const { createCloudBackend } = await import('./firestore-backend.js'); backend = await createCloudBackend();
+      $('config-note').textContent = 'Your account and tasks are stored securely online, so you can use any device.';
     } else {
       const { createDemoBackend } = await import('./demo-backend.js'); backend = createDemoBackend();
       $('config-note').textContent = 'Demo mode: your account and data stay in this browser. See SETUP.md to connect a live backend.';
