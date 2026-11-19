@@ -30,21 +30,22 @@ export function createAdminView({ getProof, review }) {
     const meta = el('p', 'meta', `${entry.memberName}${entry.memberContact ? ` · ${entry.memberContact}` : ''} · submitted ${when(entry.submittedAt)}`);
     const reason = entry.aiReason ? el('p', 'ai-note', `${entry.aiScore != null ? `AI score ${entry.aiScore}/100. ` : ''}${entry.aiReason}`) : null;
     const input = el('input'); input.placeholder = 'Review note for the member (optional)'; input.setAttribute('aria-label', 'Review note'); input.value = notes.get(entry.proofId) || ''; input.addEventListener('input', () => notes.set(entry.proofId, input.value));
-    const approve = el('button', 'btn btn-primary', 'Approve · +100 points'), reject = el('button', 'btn btn-danger', 'Request another proof'), message = el('p', 'form-status');
+    const approve = el('button', 'btn btn-primary', 'Approve · +100 points'), reject = el('button', 'btn btn-ghost', 'Request another proof'), fail = el('button', 'btn btn-danger', 'Reject · −500 points'), message = el('p', 'form-status');
     const act = async decision => {
-      approve.disabled = reject.disabled = true; message.textContent = '';
+      if (decision === 'fail' && !window.confirm(`Reject "${entry.title}"? The task will be marked as failed and 500 points will be deducted from ${entry.memberName}.`)) return;
+      approve.disabled = reject.disabled = fail.disabled = true; message.textContent = '';
       try { await review(entry.proofId, decision, input.value); notes.delete(entry.proofId); }
-      catch (error) { message.textContent = error.message || 'Could not save the decision.'; approve.disabled = reject.disabled = false; }
+      catch (error) { message.textContent = error.message || 'Could not save the decision.'; approve.disabled = reject.disabled = fail.disabled = false; }
     };
-    approve.addEventListener('click', () => act('approve')); reject.addEventListener('click', () => act('reject'));
-    const actions = el('div', 'actions'); actions.append(input, approve, reject);
+    approve.addEventListener('click', () => act('approve')); reject.addEventListener('click', () => act('reject')); fail.addEventListener('click', () => act('fail'));
+    const actions = el('div', 'actions'); actions.append(input, approve, reject, fail);
     body.append(el('span', `badge ${tone}`, label), el('h2', '', entry.title), meta); if (reason) body.append(reason); body.append(actions, message);
     card.append(image, body); return card;
   }
   function reviewedRow(entry) {
     const row = el('article', 'row row-proof'), thumb = el('img', 'thumb'); thumb.alt = ''; loadImage(thumb, entry.proofId);
     const main = el('div', 'row-main'); main.append(el('strong', '', entry.title), el('span', 'meta', `${entry.memberName} · ${when(entry.reviewedAt)} · by ${entry.reviewer === 'ai' ? 'AI review' : 'admin'}`), el('span', 'muted small', entry.reviewReason || ''));
-    const approved = entry.status === 'approved'; row.append(thumb, main, el('span', `badge ${approved ? 'badge-ok' : 'badge-bad'}`, approved ? 'Approved +100' : 'Sent back'));
+    const approved = entry.status === 'approved'; row.append(thumb, main, el('span', `badge ${approved ? 'badge-ok' : 'badge-bad'}`, approved ? 'Approved +100' : entry.failedTask ? 'Rejected −500' : 'Sent back'));
     return row;
   }
   function membersHeader() { const row = el('div', 'row row-head'); for (const text of ['Member', 'Email reminders', 'Text reminders', 'Tasks']) row.append(el('span', '', text)); return row; }

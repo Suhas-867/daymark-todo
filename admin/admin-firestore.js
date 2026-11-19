@@ -13,7 +13,7 @@ const images = new Map();
 const view = createAdminView({
   getProof: proofId => { if (!images.has(proofId)) images.set(proofId, sdk.getDoc(sdk.doc(db, 'proofImages', proofId)).then(snap => snap.data()?.data || '').catch(() => '')); return images.get(proofId); },
   review: async (proofId, decision, note) => {
-    const text = String(note || '').trim().slice(0, 300) || (decision === 'approve' ? 'Approved by an admin.' : 'An admin asked for clearer proof.');
+    const text = String(note || '').trim().slice(0, 300) || ({ approve: 'Approved by an admin.', reject: 'An admin asked for clearer proof.', fail: 'An admin rejected this proof and the task was marked as failed.' }[decision]);
     const result = await settleProof(sdk, db, proofId, decision, text, 'admin');
     if (!result.applied) throw new Error('This proof has already been reviewed.');
   }

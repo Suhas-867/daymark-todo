@@ -13,7 +13,10 @@ export const sessionToRewards = session => ({
 });
 export const rewardsToSessionPatch = rewards => ({ points: rewards.points, milestonesReached: rewards.milestonesReached, demoRupeesEarned: rewards.demoRupeesEarned });
 
-/** Approve or reject a pending proof. outcome: 'approve' | 'reject'; reviewer: 'ai' | 'admin'. */
+/**
+ * Settle a pending proof. outcome: 'approve' | 'reject' (back on the clock if time is left) | 'fail' (the admin rejects the
+ * proof outright: the task ends and 500 points are deducted); reviewer: 'ai' | 'admin'.
+ */
 export async function settleProof(sdk, db, proofId, outcome, reason, reviewer, now = Date.now()) {
   const { doc, runTransaction } = sdk;
   return runTransaction(db, async tx => {
@@ -24,10 +27,11 @@ export async function settleProof(sdk, db, proofId, outcome, reason, reviewer, n
     const sessionId = user.data()?.activeSessionId || task.data()?.sessionId, sessionRef = sessionId ? doc(db, 'users', entry.uid, 'sessions', sessionId) : null;
     const session = sessionRef ? await tx.get(sessionRef) : null;
 
-    tx.update(queueRef, { status: outcome === 'approve' ? 'approved' : 'rejected', reviewedAt: now, reviewReason: reason, reviewer, aiState: 'done' });
+    tx.update(queueRef, { status: outcome === 'approve' ? 'approved' : 'rejected', reviewedAt: now, reviewReason: reason, reviewer, aiState: 'done', failedTask: outcome === 'fail' });
     if (task.exists()) {
       const patch = { reviewedAt: now, reviewReason: reason, reviewer, aiState: 'done' }; let delta = 0;
       if (outcome === 'approve') { patch.status = 'approved'; delta = POINTS_ON_TIME; }
+      else if (outcome === 'fail') { patch.status = 'failed'; patch.failedAt = now; delta = -POINTS_PENALTY; }
       else if (task.data().deadlineAt > now) patch.status = 'pending'; // back on the clock
       else { patch.status = 'failed'; patch.failedAt = now; delta = -POINTS_PENALTY; }
       tx.update(taskRef, patch);

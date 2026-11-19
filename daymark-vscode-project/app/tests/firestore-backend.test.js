@@ -201,3 +201,20 @@ test('an interrupted AI check is handed to the admin when the member comes back'
   assert.equal(project.stored(`reviewQueue/${proofId}`).aiSuggestion, 'needs_human');
   assert.equal((await markNeedsHuman(project.sdk, project.db, 'missing', { reason: 'x' })).applied, false); assert.ok(task.id);
 });
+
+test('admin "reject" fails the task and deducts 500 points online, while "reject" alone keeps the task running', async () => {
+  const project = createFakeProject(), member = device(project);
+  const { adapter, latest } = await signUp(member);
+  const task = await adapter.createTask({ title: 'Clean up', durationMinutes: 60 }); await wait();
+  const view = () => latest.snapshot.tasks.find(item => item.id === task.id);
+  await adapter.submitProof({ task: view(), file: file('one.jpg'), mode: 'manual' }); await wait();
+  await settleProof(project.sdk, project.db, view().proofId, 'reject', 'Retry', 'admin', member.clock.t); await wait();
+  assert.deepEqual([view().status, latest.snapshot.session.points], ['pending', 0]);
+  await adapter.submitProof({ task: view(), file: file('two.jpg'), mode: 'manual' }); await wait();
+  const proofId = view().proofId;
+  assert.deepEqual(await settleProof(project.sdk, project.db, proofId, 'fail', 'Not acceptable', 'admin', member.clock.t), { applied: true, outcome: 'fail' }); await wait();
+  assert.deepEqual([view().status, view().reviewer, latest.snapshot.session.points], ['failed', 'admin', -500]);
+  assert.deepEqual([project.stored(`reviewQueue/${proofId}`).status, project.stored(`reviewQueue/${proofId}`).failedTask], ['rejected', true]);
+  assert.equal((await settleProof(project.sdk, project.db, proofId, 'fail', 'again', 'admin')).applied, false);
+  assert.deepEqual(await adapter.expireTask(view()), { failed: false });
+});

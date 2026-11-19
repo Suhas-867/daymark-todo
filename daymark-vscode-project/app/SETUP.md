@@ -56,7 +56,7 @@ If `firebase-config.js` still contains the `REPLACE_…` placeholders, the app a
 1. Serve the folder (`python -m http.server 8000`) or open the GitHub Pages site.
 2. Create an account in the app. Accounts whose email is on the administrator list (`access-config.js`, hashed) get unlimited tasks and can sign in to `/admin/` with the same email and password. Use the same browser for both pages.
 
-Everything is stored in that browser's `localStorage`, so nothing syncs between devices. It is a convenience check, not security.
+Everything is stored in that browser's `localStorage`, so nothing syncs between devices. It is a convenience check, not security. Even after Firebase is configured you can still try demo mode by adding `?demo` to the address (for example `/?demo` and `/admin/?demo`).
 
 ## Real email (EmailJS), both modes
 

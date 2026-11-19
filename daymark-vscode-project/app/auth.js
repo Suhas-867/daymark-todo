@@ -95,7 +95,7 @@ async function enterApp(user) {
 async function boot() {
   setMode(true); updateExtraLabel();
   try {
-    if (firebaseReady) {
+    if (firebaseReady && !new URLSearchParams(location.search).has('demo')) { // add ?demo to the address to force demo mode
       const { createCloudBackend } = await import('./firestore-backend.js'); backend = await createCloudBackend();
       $('config-note').textContent = 'Your account and tasks are stored securely online, so you can use any device.';
     } else {

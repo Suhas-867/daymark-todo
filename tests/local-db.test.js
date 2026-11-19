@@ -342,3 +342,21 @@ test('password reset codes expire, lock after wrong tries and are rate limited',
   clock.t += 61_000;
   await assert.rejects(db.startPasswordReset('asha@example.com'), /Too many codes/);
 });
+
+test('admin "reject" ends the task and deducts 500 points even with time left; "request another proof" does not', async () => {
+  const { db } = setup(); const user = await member(db);
+  const task = db.createTask(user.uid, 'session-1', { title: 'Write report', durationMinutes: 30 });
+  const first = db.submitProof(user.uid, task.id, proof).proofId;
+  db.adminReview(first, 'reject', 'Please retry');
+  assert.deepEqual([db.userSnapshot(user.uid, 'session-1').tasks[0].status, db.userSnapshot(user.uid, 'session-1').session.points], ['pending', 0]);
+  const second = db.submitProof(user.uid, task.id, proof).proofId;
+  db.adminReview(second, 'fail');
+  const snap = db.userSnapshot(user.uid, 'session-1');
+  assert.deepEqual([snap.tasks[0].status, snap.tasks[0].reviewer, snap.session.points], ['failed', 'admin', -500]);
+  assert.match(snap.tasks[0].reviewReason, /marked as failed/);
+  const entry = db.adminSnapshot().reviewed.find(item => item.proofId === second);
+  assert.deepEqual([entry.status, entry.failedTask], ['rejected', true]);
+  assert.throws(() => db.adminReview(second, 'fail'), /already been reviewed/);
+  assert.throws(() => db.adminReview('x', 'delete'), /Choose approve/);
+  assert.equal(db.expireTask(user.uid, task.id).failed, false, 'a failed task is not penalised twice');
+});

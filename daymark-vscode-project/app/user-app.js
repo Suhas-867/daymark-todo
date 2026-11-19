@@ -59,7 +59,7 @@ export function startUserApp(adapter, options = {}) {
   function statusLabel(task) {
     switch (task.status) {
       case 'approved': return { text: 'Approved · +100 pts', tone: 'ok' };
-      case 'failed': return { text: 'Time expired · −500 pts', tone: 'bad' };
+      case 'failed': return { text: task.reviewer === 'admin' ? 'Rejected · −500 pts' : 'Time expired · −500 pts', tone: 'bad' };
       case 'review': return task.reviewMode === 'ai' && task.aiState === 'analyzing' ? { text: 'AI is reviewing…', tone: 'busy' } : { text: task.reviewMode === 'ai' ? 'AI unsure · waiting for admin' : 'Waiting for admin review', tone: 'wait' };
       default: return null;
     }
@@ -159,7 +159,7 @@ export function startUserApp(adapter, options = {}) {
       const before = seen.get(task.id);
       if (before && before !== task.status) {
         if (task.status === 'approved') celebrate('CONGRATULATIONS!! YOU HAVE COMPLETED THE TASK!! +100 POINTS 🎉', 'success');
-        else if (task.status === 'failed') celebrate('OOPS! THE TIMER HAS RUN OUT...BETTER LUCK NEXT TIME!', 'failure');
+        else if (task.status === 'failed') celebrate(before === 'review' ? 'OOPS! YOUR PROOF WAS REJECTED...−500 POINTS' : 'OOPS! THE TIMER HAS RUN OUT...BETTER LUCK NEXT TIME!', 'failure');
         else if (before === 'review' && task.status === 'pending') toast({ title: 'Proof not accepted', body: `${task.reviewReason || 'Please upload a clearer photo.'} You can submit again before the timer ends.`, kind: 'warn', timeout: 10000 });
         else if (task.status === 'review' && before === 'pending') { /* submitted: dialog already confirmed it */ }
       }

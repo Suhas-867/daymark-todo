@@ -26,7 +26,7 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 - **Timed tasks** — countdown per task, flicker only while a timer is running, celebration with party poppers on success, “OOPS!” message on a missed timer, task input locks after the 10th free task.
 - **Proof upload** — JPG/PNG/WebP up to 8 MB with a preview.
 - **AI review** — an on-device vision model (MobileCLIP) checks that the photo actually shows what the task says. A table photo for a "ceiling" task is rejected, a cluttered table or one covered with bags is rejected for "clean a table", and a matching photo is approved with the reason shown. Blank, blurry and reused photos are rejected, and anything uncertain goes to a human admin. If the model cannot load, the proof goes to an admin instead of being approved.
-- **Manual review** — the proof goes to the **separate admin website**; points are awarded the moment the admin approves.
+- **Manual review** — the admin has three choices: **Approve** (+100), **Request another proof** (the task goes back on the clock) or **Reject** (the task ends as failed and 500 points are deducted, after a confirmation). Details: the proof goes to the **separate admin website**; points are awarded the moment the admin approves.
 - **Live admin console** (`/admin/`) — review queue with images, history, members list with consent flags, and a reminder outbox. It updates live with the user app.
 - **Deadline warnings** — pop-up in the app, an optional browser notification, plus an email and an SMS for members who opted in (each channel verified with a code first).
 

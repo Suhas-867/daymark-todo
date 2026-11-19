@@ -80,6 +80,9 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
     if (!task) return;
     task.reviewedAt = stamp; task.reviewReason = reason; task.reviewer = reviewer;
     if (outcome === 'approve') { task.status = 'approved'; award(db, entry.uid, task.sessionId, POINTS_ON_TIME); return; }
+    if (outcome === 'fail') { // the admin rejected the proof outright: the task ends and the penalty applies
+      entry.failedTask = true; task.status = 'failed'; task.failedAt = stamp; award(db, entry.uid, task.sessionId, -POINTS_PENALTY); return;
+    }
     if (Date.parse(task.deadlineAt) > now()) task.status = 'pending';
     else { task.status = 'failed'; task.failedAt = stamp; award(db, entry.uid, task.sessionId, -POINTS_PENALTY); }
   }
@@ -321,12 +324,12 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
       });
     },
     adminReview(proofId, decision, note = '') {
-      if (!['approve', 'reject'].includes(decision)) fail('Choose approve or reject.');
+      if (!['approve', 'reject', 'fail'].includes(decision)) fail('Choose approve, request another proof, or reject.');
       return mutate(db => {
         const entry = db.queue[proofId];
         if (!entry || entry.status !== 'pending') fail('This proof has already been reviewed.');
         const cleanNote = String(note).trim().slice(0, 300);
-        settle(db, entry, decision, cleanNote || (decision === 'approve' ? 'Approved by an admin.' : 'An admin asked for clearer proof.'), 'admin');
+        settle(db, entry, decision, cleanNote || ({ approve: 'Approved by an admin.', reject: 'An admin asked for clearer proof.', fail: 'An admin rejected this proof and the task was marked as failed.' }[decision]), 'admin');
         return { ok: true };
       });
     },
