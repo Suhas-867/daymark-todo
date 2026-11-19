@@ -4,12 +4,13 @@
 // passwords are only hashed client-side and email/SMS are simulated in an outbox.
 import { FREE_TASK_LIMIT, applyPointDelta, emptyRewards, extendDemoMembership, hasActiveMembership } from './rewards.js';
 import { emailLimits, smsLimits } from './messaging-config.js';
+import { adminEmailHashes } from './access-config.js';
+import { sha256Hex } from './sha256.js';
 
 export const DB_KEY = 'daymark.demo.db.v1';
 export const SESSION_KEY = 'daymark.demo.session.v1';
 export const ADMIN_SESSION_KEY = 'daymark.demo.admin-session.v1';
 export const PROOF_PREFIX = 'daymark.demo.proof.';
-export const DEMO_ADMIN = Object.freeze({ email: 'admin@daymark.demo', password: 'Admin@12345' });
 export const POINTS_ON_TIME = 100;
 export const POINTS_PENALTY = 500;
 export { FREE_TASK_LIMIT };
@@ -17,6 +18,9 @@ export { FREE_TASK_LIMIT };
 const emptyDb = () => ({ v: 1, users: {}, tasks: {}, sessions: {}, queue: {}, outbox: [] });
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** True for the administrator addresses listed (hashed) in access-config.js. */
+export const isAdminEmail = email => Boolean(email) && adminEmailHashes.includes(sha256Hex(String(email).trim().toLowerCase()));
 
 export class DemoError extends Error {}
 const fail = message => { throw new DemoError(message); };
@@ -46,7 +50,7 @@ async function hashPassword(password, salt) {
 
 const publicUser = user => user && ({
   uid: user.uid, name: user.name, email: user.email, phone: user.phone, emailReminders: user.emailReminders,
-  smsReminders: user.smsReminders, emailVerified: Boolean(user.emailVerified), phoneVerified: Boolean(user.phoneVerified), trialTasksUsed: user.trialTasksUsed, createdAt: user.createdAt
+  smsReminders: user.smsReminders, isAdmin: isAdminEmail(user.email), emailVerified: Boolean(user.emailVerified), phoneVerified: Boolean(user.phoneVerified), trialTasksUsed: user.trialTasksUsed, createdAt: user.createdAt
 });
 
 export function createLocalDb(storage = globalThis.localStorage, { now = () => Date.now() } = {}) {
@@ -138,7 +142,6 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
       const email = [primary, extra].find(contact => contact?.type === 'email')?.value || '', phone = [primary, extra].find(contact => contact?.type === 'phone')?.value || '';
       if (emailReminders && !email) fail('Add an email address to receive email reminders, or untick that option.');
       if (smsReminders && !phone) fail('Add a phone number to receive text reminders, or untick that option.');
-      if (email === DEMO_ADMIN.email) fail('That address is reserved. Please use another one.');
       const salt = newId(), passHash = await hashPassword(password, salt);
       return mutate(db => {
         const clash = Object.values(db.users).find(user => (email && user.email === email) || (phone && user.phone === phone));
@@ -154,6 +157,13 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
       if (!user || user.passHash !== await hashPassword(String(password || ''), user.salt)) fail('Incorrect email/phone or password.');
       return publicUser(user);
     },
+    /** Sign in to the admin console: a normal account whose email is on the admin list. */
+    async adminSignIn({ identifier, password }) {
+      const user = await this.signIn({ identifier, password });
+      if (!user.isAdmin) fail('This account is not an administrator.');
+      return user;
+    },
+    getAdminUser(uid) { const user = uid ? publicUser(read().users[uid]) : null; return user?.isAdmin ? user : null; },
     getUser(uid) { return publicUser(read().users[uid]) || null; },
     updatePreferences(uid, { name, email, phone, emailReminders, smsReminders }) {
       const cleanEmail = String(email ?? '').trim() ? parseContact(email) : null, cleanPhone = String(phone ?? '').trim() ? parseContact(phone) : null;
@@ -193,7 +203,7 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
       if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) fail('Choose a timer from 1 minute to 24 hours.');
       return mutate(db => {
         const user = db.users[uid] || fail('Account not found. Please sign in again.'), session = db.sessions[sessionId];
-        const member = session && hasActiveMembership(sessionRewards(session), new Date(now()));
+        const member = isAdminEmail(user.email) || (session && hasActiveMembership(sessionRewards(session), new Date(now()))); // admins have unlimited demo tasks
         if (!member && user.trialTasksUsed >= FREE_TASK_LIMIT) fail('Your 10 free task trials are over. Get membership for full access.');
         if (!member) user.trialTasksUsed += 1;
         const id = newId(), created = now();

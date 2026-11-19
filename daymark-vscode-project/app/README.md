@@ -26,7 +26,7 @@ Everything is a prototype: no payments, no payouts. Verified emails are really s
    python -m http.server 8001
    ```
 
-3. Open <http://localhost:8001> for the app and <http://localhost:8001/admin/> for the admin console in two tabs of the same browser. Admin demo login: `admin@daymark.demo` / `Admin@12345`.
+3. Open <http://localhost:8001> for the app and <http://localhost:8001/admin/> for the admin console in two tabs of the same browser. Create an account with an administrator email listed in `access-config.js` to get unlimited tasks and to sign in to the admin console.
 4. Run the tests with `npm test`.
 
 ## Try it (judge walk-through)
@@ -46,7 +46,8 @@ Everything is a prototype: no payments, no payouts. Verified emails are really s
 | `email-service.js`, `messaging-config.js` | Sending email through EmailJS and the safety limits |
 | `sms-service.js`, `worker/sms-relay.js` | A locked-down relay so Twilio secrets never reach the browser |
 | `ai-review.js` | Image statistics (quality, duplicates) |
-| `ai-vision.js` | CLIP vision model: does the photo match the task? Candidate descriptions and decision rules |
+| `ai-vision.js`, `vision-runtime.js` | MobileCLIP vision model: does the photo match the task? Descriptions, decision rules and model loading |
+| `access-config.js`, `sha256.js` | Hashed administrator list and a tiny SHA-256 |
 | `local-db.js` | A tiny database with live updates across browser tabs |
 | `demo-backend.js`, `cloud-backend.js` | The same adapter interface over localStorage or Firebase |
 | `user-app.js` | One dashboard controller that works with either backend |

@@ -280,3 +280,31 @@ test('daily text limit stops live SMS reminders', async () => {
   assert.equal(statuses.filter(status => status === 'queued').length, 5);
   assert.equal(statuses.at(-1), 'skipped');
 });
+
+test('administrator accounts get unlimited demo tasks and can sign in to the admin console', async () => {
+  const { db } = setup();
+  const admin = await db.signUp({ name: 'Boss', identifier: 'SuhasM867@gmail.com', password: 'secret-pass' });
+  assert.equal(admin.isAdmin, true);
+  db.startSession(admin.uid, 'admin-session');
+  for (let i = 0; i < 15; i++) db.createTask(admin.uid, 'admin-session', { title: `Admin task ${i}`, durationMinutes: 5 });
+  const snapshot = db.userSnapshot(admin.uid, 'admin-session');
+  assert.equal(snapshot.tasks.length, 15); assert.equal(snapshot.profile.trialTasksUsed, 0, 'admin tasks do not use up the free trial');
+  assert.equal((await db.adminSignIn({ identifier: 'suhasm867@gmail.com', password: 'secret-pass' })).uid, admin.uid);
+  assert.equal(db.getAdminUser(admin.uid).uid, admin.uid);
+  await assert.rejects(db.adminSignIn({ identifier: 'suhasm867@gmail.com', password: 'wrong-pass' }), /Incorrect/);
+});
+
+test('regular members stay limited and cannot enter the admin console', async () => {
+  const { db } = setup(); const user = await member(db);
+  assert.equal(user.isAdmin, false);
+  for (let i = 0; i < 10; i++) db.createTask(user.uid, 'session-1', { title: `T${i}`, durationMinutes: 5 });
+  assert.throws(() => db.createTask(user.uid, 'session-1', { title: 'T11', durationMinutes: 5 }), /free task trials are over/);
+  await assert.rejects(db.adminSignIn({ identifier: 'asha@example.com', password: 'secret-pass' }), /not an administrator/);
+  assert.equal(db.getAdminUser(user.uid), null); assert.equal(db.getAdminUser('nobody'), null); assert.equal(db.getAdminUser(null), null);
+});
+
+test('an existing account that switches to an admin address becomes an administrator', async () => {
+  const { db } = setup(); const user = await member(db);
+  const updated = db.updatePreferences(user.uid, { name: 'Asha', email: 'suhasm867@gmail.com', phone: '', emailReminders: false, smsReminders: false });
+  assert.equal(updated.isAdmin, true);
+});

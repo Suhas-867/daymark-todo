@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCandidates, combineVerdicts, judgeContent, parseTask } from '../ai-vision.js';
+import { buildConcepts, combineVerdicts, dot, judgeContent, meanVector, normalize, parseTask, scoreWithRuntime, softmax } from '../ai-vision.js';
 
 test('understands what the task is about', () => {
   assert.deepEqual(parseTask('I will clean a table'), { cleaning: true, subject: 'table', phrase: 'clean a table' });
-  assert.deepEqual(parseTask('  Tidy up my room!  ').subject, 'room'.length ? parseTask('  Tidy up my room!  ').subject : '');
+  assert.equal(parseTask('Tidy up my room!').subject, 'room');
   assert.equal(parseTask('Clean the kitchen counter').subject, 'kitchen counter');
   assert.equal(parseTask("i'll wash the dishes").cleaning, true);
   assert.deepEqual(parseTask('ceiling'), { cleaning: false, subject: 'ceiling', phrase: 'ceiling' });
@@ -12,46 +12,67 @@ test('understands what the task is about', () => {
   assert.equal(parseTask('').subject, 'the task');
 });
 
-test('builds competing descriptions: clean vs messy for cleaning tasks, plain subject otherwise', () => {
-  const cleaning = buildCandidates('I will clean a table');
-  const kinds = kind => cleaning.candidates.filter(c => c.kind === kind).map(c => c.label);
-  assert.ok(kinds('positive').some(label => /clean tidy table/.test(label)));
-  assert.ok(kinds('negative').some(label => /messy cluttered table/.test(label)) && kinds('negative').some(label => /bags/.test(label)));
-  assert.ok(!cleaning.candidates.some(c => c.kind === 'other' && /a table$/.test(c.label)), 'the plain table scene is not a distractor');
-  const ceiling = buildCandidates('ceiling');
-  assert.deepEqual(ceiling.candidates.filter(c => c.kind === 'positive').map(c => c.label), ['a photo of ceiling']);
-  assert.ok(!ceiling.candidates.some(c => c.kind === 'other' && /ceiling/.test(c.label)));
-  assert.ok(ceiling.candidates.some(c => c.kind === 'other' && /table/.test(c.label)));
+test('knows everyday tasks and what finished / unfinished looks like', () => {
+  const texts = (title, kind) => buildConcepts(title).concepts.filter(c => c.kind === kind).map(c => c.text).join(' | ');
+  assert.match(texts('make my bed', 'positive'), /neatly made bed/); assert.match(texts('make my bed', 'negative'), /unmade/);
+  assert.match(texts('wash the dishes', 'positive'), /clean dishes/); assert.match(texts('wash the dishes', 'negative'), /dirty/);
+  assert.match(texts('fold the laundry', 'positive'), /folded/);
+  assert.match(texts('read two chapters', 'positive'), /reading a book/);
+  assert.match(texts('go for a run', 'positive'), /running|exercising/);
+  assert.match(texts('cook dinner', 'positive'), /cooked food/);
+  assert.match(texts('Do homework', 'positive'), /notes|studying/);
 });
 
-function rank(candidates, weights) {
-  const raw = candidates.map(c => ({ label: c.label, score: weights(c) }));
-  const total = raw.reduce((sum, item) => sum + item.score, 0);
-  return raw.map(item => ({ ...item, score: item.score / total })).sort((a, b) => b.score - a.score);
-}
-
-test('a table photo does not pass for a "ceiling" task', () => {
-  const { candidates } = buildCandidates('ceiling');
-  const ranked = rank(candidates, c => (/a table$/.test(c.label) ? 50 : c.kind === 'positive' ? 1 : 0.5));
-  const result = judgeContent('ceiling', candidates, ranked);
-  assert.equal(result.decision, 'reject'); assert.match(result.reason, /does not look like "ceiling".*table/);
+test('cleaning tasks get clean-vs-messy descriptions, other tasks the plain subject, and every concept has several phrasings', () => {
+  const cleaning = buildConcepts('I will clean a table');
+  const kind = k => cleaning.concepts.filter(c => c.kind === k).map(c => c.text);
+  assert.ok(kind('positive').some(t => /clean tidy table/.test(t)));
+  assert.ok(kind('negative').some(t => /messy cluttered table/.test(t)) && kind('negative').some(t => /bags/.test(t)));
+  assert.ok(!kind('other').includes('a table'), 'the plain table scene is not a distractor');
+  assert.ok(cleaning.concepts.every(c => c.prompts.length === 3 && c.prompts.every(p => p.includes(c.text))));
+  const ceiling = buildConcepts('ceiling');
+  assert.deepEqual(ceiling.concepts.filter(c => c.kind === 'positive').map(c => c.text), ['a ceiling']);
+  assert.ok(!ceiling.concepts.some(c => c.kind === 'other' && c.text === 'a ceiling'));
+  assert.ok(ceiling.concepts.some(c => c.kind === 'other' && c.text === 'a table'));
+  assert.equal(ceiling.hasNegatives, false);
 });
 
-test('a ceiling photo passes for a "ceiling" task', () => {
-  const { candidates } = buildCandidates('ceiling');
-  const result = judgeContent('ceiling', candidates, rank(candidates, c => (c.kind === 'positive' ? 40 : 1)));
-  assert.equal(result.decision, 'approve');
+test('vector helpers', () => {
+  assert.deepEqual(normalize([3, 4]), [0.6, 0.8]);
+  assert.equal(dot([1, 2], [3, 4]), 11);
+  const p = softmax([0, 0, Math.log(2)]); assert.ok(Math.abs(p.reduce((a, b) => a + b) - 1) < 1e-9 && p[2] > p[0]);
+  assert.ok(Math.abs(Math.hypot(...meanVector([[1, 0], [0, 1]])) - 1) < 1e-9);
+});
+
+const probsFor = (concepts, weight) => softmax(concepts.map(weight));
+
+test('a table photo does not pass for a "ceiling" task, a ceiling photo does', () => {
+  const { concepts } = buildConcepts('ceiling');
+  const mismatch = judgeContent('ceiling', concepts, probsFor(concepts, c => (c.text === 'a table' ? 8 : c.kind === 'positive' ? 0 : 1)));
+  assert.equal(mismatch.decision, 'reject'); assert.match(mismatch.reason, /does not look like "ceiling".*table/);
+  assert.equal(judgeContent('ceiling', concepts, probsFor(concepts, c => (c.kind === 'positive' ? 8 : 0))).decision, 'approve');
+  assert.equal(judgeContent('ceiling', concepts, probsFor(concepts, c => (c.kind === 'positive' ? 2 : c.text === 'a wall' ? 2 : 0))).decision, 'needs_human');
 });
 
 test('cleaning: clutter is rejected, a clean surface is approved, doubt goes to a human', () => {
-  const { candidates } = buildCandidates('I will clean a table');
-  const weighted = (clean, messy) => rank(candidates, c => (c.kind === 'positive' ? clean : c.kind === 'negative' ? messy : 0.4));
-  const cluttered = judgeContent('I will clean a table', candidates, weighted(1, 12));
-  assert.equal(cluttered.decision, 'reject'); assert.match(cluttered.reason, /still looks messy/);
-  assert.equal(judgeContent('I will clean a table', candidates, weighted(14, 1)).decision, 'approve');
-  assert.equal(judgeContent('I will clean a table', candidates, weighted(3, 3)).decision, 'needs_human');
-  const wrongRoom = judgeContent('I will clean a table', candidates, rank(candidates, c => (c.kind === 'other' && /ceiling/.test(c.label) ? 60 : 0.3)));
-  assert.equal(wrongRoom.decision, 'reject'); assert.match(wrongRoom.reason, /does not look like a table/);
+  const { concepts } = buildConcepts('I will clean a table'), title = 'I will clean a table';
+  const weighted = (clean, messy) => probsFor(concepts, c => (c.kind === 'positive' ? clean : c.kind === 'negative' ? messy : 0));
+  const cluttered = judgeContent(title, concepts, weighted(0, 5));
+  assert.equal(cluttered.decision, 'reject'); assert.match(cluttered.reason, /does not look finished/);
+  assert.equal(judgeContent(title, concepts, weighted(5, 0)).decision, 'approve');
+  assert.equal(judgeContent(title, concepts, weighted(1.5, 1.5)).decision, 'needs_human');
+  const wrongRoom = judgeContent(title, concepts, probsFor(concepts, c => (c.text === 'a ceiling' ? 12 : 0)));
+  assert.equal(wrongRoom.decision, 'reject'); assert.match(wrongRoom.reason, /does not look like table/);
+});
+
+test('scores a photo end to end with an embedding runtime and averages phrasings per concept', async () => {
+  // Fake 3-d embedding space: ceiling-ish prompts point at axis 0, table-ish at axis 1, everything else at axis 2.
+  const axis = prompt => (/ceiling/.test(prompt) ? [1, 0, 0] : /table/.test(prompt) ? [0, 1, 0] : [0, 0, 1]);
+  const runtime = { embedTexts: async prompts => prompts.map(axis), embedImage: async url => axis(url) };
+  assert.equal((await scoreWithRuntime(runtime, 'ceiling.jpg', 'ceiling')).decision, 'approve');
+  const tableForCeiling = await scoreWithRuntime(runtime, 'table.jpg', 'ceiling');
+  assert.equal(tableForCeiling.decision, 'reject'); assert.match(tableForCeiling.reason, /table/);
+  assert.equal((await scoreWithRuntime(runtime, 'ceiling.jpg', 'make my bed')).decision, 'reject');
 });
 
 test('quality alone never approves, rejects stay rejected and approvals keep the explanation', () => {

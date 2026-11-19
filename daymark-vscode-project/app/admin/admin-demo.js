@@ -1,6 +1,6 @@
 // Demo-mode admin console. It reads and writes the same in-browser database as the user app,
 // so a proof submitted in one tab appears here immediately and approvals award points live.
-import { ADMIN_SESSION_KEY, DEMO_ADMIN, createLocalDb } from '../local-db.js';
+import { ADMIN_SESSION_KEY, createLocalDb } from '../local-db.js';
 
 const $ = id => document.getElementById(id);
 const db = createLocalDb(window.localStorage);
@@ -8,21 +8,27 @@ const notes = new Map(); // keep half-typed review notes while the queue re-rend
 let signature = '', tab = 'pending';
 
 $('mode-chip').hidden = false; $('mode-chip').textContent = 'Demo · live with the user app';
-$('demo-creds').hidden = false; $('demo-email').textContent = DEMO_ADMIN.email; $('demo-password').textContent = DEMO_ADMIN.password;
-for (const id of ['stats', 'tabs', 'demo-foot']) $(id).hidden = false;
-$('demo-fill').addEventListener('click', () => { $('email').value = DEMO_ADMIN.email; $('password').value = DEMO_ADMIN.password; });
+for (const id of ['stats', 'tabs', 'demo-foot', 'demo-creds']) $(id).hidden = false;
 
-const isAdmin = () => { try { return window.localStorage.getItem(ADMIN_SESSION_KEY) === '1'; } catch { return false; } };
-const setAdmin = on => { try { on ? window.localStorage.setItem(ADMIN_SESSION_KEY, '1') : window.localStorage.removeItem(ADMIN_SESSION_KEY); } catch { /* ignore */ } sync(); };
-function sync() { const on = isAdmin(); $('login').hidden = on; $('queue').hidden = !on; $('signout').hidden = !on; if (on) { signature = ''; render(); } }
+// The admin session stores the id of an admin account; it is re-checked against the database every time.
+const adminUser = () => { try { return db.getAdminUser(window.localStorage.getItem(ADMIN_SESSION_KEY)); } catch { return null; } };
+const isAdmin = () => Boolean(adminUser());
+const setAdmin = uid => { try { uid ? window.localStorage.setItem(ADMIN_SESSION_KEY, uid) : window.localStorage.removeItem(ADMIN_SESSION_KEY); } catch { /* ignore */ } sync(); };
+function sync() {
+  const admin = adminUser(), on = Boolean(admin);
+  $('login').hidden = on; $('queue').hidden = !on; $('signout').hidden = !on;
+  $('mode-chip').textContent = on ? `Signed in as ${admin.name || admin.email}` : 'Demo · live with the user app';
+  if (on) { signature = ''; render(); }
+}
 
-$('login-form').addEventListener('submit', event => {
-  event.preventDefault();
-  if ($('email').value.trim().toLowerCase() === DEMO_ADMIN.email && $('password').value === DEMO_ADMIN.password) { $('status').textContent = ''; setAdmin(true); }
-  else $('status').textContent = 'Incorrect admin email or password.';
+$('login-form').addEventListener('submit', async event => {
+  event.preventDefault(); const button = $('login-form').querySelector('button[type=submit], button:not([type])'); button.disabled = true; $('status').textContent = '';
+  try { const user = await db.adminSignIn({ identifier: $('email').value, password: $('password').value }); setAdmin(user.uid); $('password').value = ''; }
+  catch (error) { $('status').textContent = error.message; }
+  finally { button.disabled = false; }
 });
-$('signout').addEventListener('click', () => setAdmin(false));
-$('reset-demo').addEventListener('click', () => { if (window.confirm('Delete every demo account, task and proof in this browser?')) { db.reset(); notes.clear(); signature = ''; render(); } });
+$('signout').addEventListener('click', () => setAdmin(null));
+$('reset-demo').addEventListener('click', () => { if (window.confirm('Delete every demo account, task and proof in this browser?')) { db.reset(); notes.clear(); signature = ''; setAdmin(null); } });
 window.addEventListener('storage', event => { if (event.key === ADMIN_SESSION_KEY) sync(); });
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => { tab = button.dataset.tab; showTab(); }));
 db.subscribe(() => { if (isAdmin()) render(); });

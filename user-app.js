@@ -71,7 +71,7 @@ export function startUserApp(adapter, options = {}) {
     const done = tasks.filter(task => task.status === 'approved').length, open = tasks.filter(isOpen).length;
     const percent = tasks.length ? Math.round(done / tasks.length * 100) : 0;
     const trialUsed = profile.trialTasksUsed || 0, trialLeft = Math.max(0, FREE_TASK_LIMIT - trialUsed);
-    const member = parseMs(session.membershipExpiresAt) > now, locked = !member && trialLeft === 0;
+    const admin = Boolean(profile.isAdmin), member = admin || parseMs(session.membershipExpiresAt) > now, locked = !member && trialLeft === 0;
     const points = session.points || 0, milestone = ((points % 1000) + 1000) % 1000;
 
     $('#all-count').textContent = tasks.length; $('#active-count').textContent = open; $('#completed-count').textContent = done;
@@ -82,9 +82,9 @@ export function startUserApp(adapter, options = {}) {
     $('#points-ring').style.strokeDashoffset = String(RING_BIG * (1 - milestone / 1000));
     $('#reward-total').textContent = `₹${session.earnedRupees || 0}`;
 
-    $('#membership-status').textContent = member ? 'Active' : trialLeft ? `Free trial · ${trialLeft} left` : 'Trial finished';
-    $('#membership-expiry').textContent = member ? `Active until ${dateText(parseMs(session.membershipExpiresAt), true)}` : trialLeft ? `${trialLeft} of ${FREE_TASK_LIMIT} free timed tasks remaining.` : 'Get membership to add more tasks.';
-    $('#membership-button').textContent = member ? 'Extend membership' : 'Activate membership · ₹99';
+    $('#membership-status').textContent = admin ? 'Admin · unlimited' : member ? 'Active' : trialLeft ? `Free trial · ${trialLeft} left` : 'Trial finished';
+    $('#membership-expiry').textContent = admin ? 'Unlimited demo tasks for the administrator account.' : member ? `Active until ${dateText(parseMs(session.membershipExpiresAt), true)}` : trialLeft ? `${trialLeft} of ${FREE_TASK_LIMIT} free timed tasks remaining.` : 'Get membership to add more tasks.';
+    $('#membership-button').textContent = admin ? 'Open admin console' : member ? 'Extend membership' : 'Activate membership · ₹99';
     for (const control of [input, $('#task-duration'), $('#custom-duration'), $('#task-add')]) control.disabled = locked;
     form.classList.toggle('membership-locked', locked); $('#trial-lock-message').hidden = !locked;
     input.placeholder = locked ? 'Membership required to add tasks' : 'What will you get done?';
@@ -217,6 +217,7 @@ export function startUserApp(adapter, options = {}) {
     finally { render(); }
   });
   $('#membership-button').addEventListener('click', async () => {
+    if (state.profile.isAdmin) { window.open('admin/index.html', '_blank', 'noopener'); return; }
     try {
       const result = await adapter.activateMembership(), until = dateText(parseMs(result.expiresAt), true);
       toast({ title: result.alreadyActive ? 'Membership already active' : 'Membership active', body: result.alreadyActive ? `Your plan stays active until ${until}. Extending does not move the date during this session.` : `Active until ${until}. Demo only: no payment was charged.`, kind: 'success' });
@@ -232,7 +233,7 @@ export function startUserApp(adapter, options = {}) {
     proofTask = task; $('#proof-task-title').textContent = task.title; proofFile.value = ''; resetPreview(); $('#proof-status').textContent = ''; $('#proof-status').className = 'dialog-status';
     $('#proof-submit').disabled = false; proofDialog.showModal();
     const note = $('#ai-model-status'); note.hidden = !adapter.warmUpAi; note.textContent = 'Preparing the AI reviewer…';
-    adapter.warmUpAi?.(percent => { note.textContent = percent >= 100 ? 'AI reviewer ready.' : `Loading the AI reviewer (first time only, about 150 MB): ${percent}%`; })?.then(() => { note.textContent = 'AI reviewer ready.'; });
+    adapter.warmUpAi?.(percent => { note.textContent = percent >= 100 ? 'AI reviewer ready.' : `Loading the AI reviewer (first time only, about 66 MB): ${percent}%`; })?.then(() => { note.textContent = 'AI reviewer ready.'; });
   }
   proofFile.addEventListener('change', () => {
     const file = proofFile.files[0]; if (!file) { resetPreview(); return; }
@@ -331,5 +332,11 @@ export function startUserApp(adapter, options = {}) {
 
   $('#today-label').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
   $('#demo-banner').hidden = adapter.mode !== 'demo';
+
+  // Start loading the AI reviewer shortly after sign-in on a decent connection, so it is ready (and the
+  // first review is quick) by the time the first proof is submitted. Slow or data-saving connections wait
+  // until the proof dialog is opened.
+  const connection = navigator.connection, goodConnection = !connection || (!connection.saveData && !/(^|-)(slow-)?2g|3g/.test(connection.effectiveType || ''));
+  if (adapter.warmUpAi && goodConnection) setTimeout(() => adapter.warmUpAi(() => {}), 2500);
   render();
 }

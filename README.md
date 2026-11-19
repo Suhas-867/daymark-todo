@@ -24,7 +24,7 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 - **Real email** — verified addresses get real reminder emails through EmailJS, even in demo mode. A 6-digit code emailed to the address proves it is theirs first (10-minute expiry, 5 attempts, 60-second resend cooldown, 5 codes an hour, 20 reminder emails a day per member).
 - **Timed tasks** — countdown per task, flicker only while a timer is running, celebration with party poppers on success, “OOPS!” message on a missed timer, task input locks after the 10th free task.
 - **Proof upload** — JPG/PNG/WebP up to 8 MB with a preview.
-- **AI review** — an on-device vision model (CLIP) checks that the photo actually shows what the task says. A table photo for a "ceiling" task is rejected, a cluttered table or one covered with bags is rejected for "clean a table", and a matching photo is approved with the reason shown. Blank, blurry and reused photos are rejected, and anything uncertain goes to a human admin. If the model cannot load, the proof goes to an admin instead of being approved.
+- **AI review** — an on-device vision model (MobileCLIP) checks that the photo actually shows what the task says. A table photo for a "ceiling" task is rejected, a cluttered table or one covered with bags is rejected for "clean a table", and a matching photo is approved with the reason shown. Blank, blurry and reused photos are rejected, and anything uncertain goes to a human admin. If the model cannot load, the proof goes to an admin instead of being approved.
 - **Manual review** — the proof goes to the **separate admin website**; points are awarded the moment the admin approves.
 - **Live admin console** (`/admin/`) — review queue with images, history, members list with consent flags, and a reminder outbox. It updates live with the user app.
 - **Deadline warnings** — pop-up in the app, an optional browser notification, plus an email and an SMS for members who opted in (each channel verified with a code first).
@@ -35,9 +35,9 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 
 This is what GitHub Pages serves. No setup. Accounts, tasks, proof images and the review queue are stored in the browser's `localStorage`, shared live between the user app and the admin site through the same origin. Open both in two tabs of the same browser to see a proof appear on the admin page and the points arrive on the user page.
 
-- Demo admin: `admin@daymark.demo` / `Admin@12345` (shown on the admin sign-in page).
+- **Administrator:** accounts whose email is listed (as a SHA-256 hash) in `access-config.js` get **unlimited demo tasks** in the app and can sign in to the admin console for manual review with the same email and password. Create the account in the user app first, then sign in at `/admin/`. This is a convenience check in demo mode, not security (see SETUP.md).
 - **Email reminders are real** (sent from the open page, so the browser tab must be open when the timer gets close). Text messages go through a small Cloudflare Worker that holds the Twilio secrets (`worker/`); until its URL is set in `messaging-config.js` they are **simulated** in the admin *Reminder outbox* (see SETUP.md). On `localhost` email delivery is skipped and the verification code is shown on screen, because EmailJS only accepts the published site's domain.
-- The AI check runs in your browser: a quality check (sharpness, contrast, exposure, duplicates) plus the CLIP model, which compares the photo with descriptions built from the task text. The model is about 150 MB and downloads the first time a member opens the proof dialog (the browser caches it afterwards). The photo never leaves the device. It is still an assistive check: it can be fooled by an unrelated photo that happens to look similar, so unclear results go to an admin.
+- The AI check runs in your browser: a quality check (sharpness, contrast, exposure, duplicates) plus the MobileCLIP model, which compares the photo with descriptions built from the task text (several phrasings per description, several crops per photo, and built-in knowledge of everyday tasks such as making a bed, washing dishes or reading). The model is about 66 MB; it starts loading in the background a few seconds after sign-in on a decent connection (about 20 seconds on a fast one) and the browser caches it afterwards. The photo never leaves the device. It is still an assistive check: it can be fooled by an unrelated photo that happens to look similar, so unclear results go to an admin.
 - Data stays on that one device. Use **Reset demo data** in the admin console to start fresh.
 
 ### 2. Live mode (real accounts, cloud sync, real messages)
@@ -65,7 +65,9 @@ user-app.js                  Dashboard controller shared by both backends (timer
 local-db.js                  Demo backend: accounts, tasks, proofs, points, reminders in localStorage
 demo-backend.js              Wires the demo database to the dashboard
 ai-review.js                 Photo quality and duplicate check
-ai-vision.js                 CLIP task-vs-photo matching and the approve / reject / human decision
+ai-vision.js                 Task understanding, descriptions and the approve / reject / human decision
+vision-runtime.js            MobileCLIP model loading and embeddings (browser)
+access-config.js, sha256.js  Hashed administrator email list
 cloud-backend.js             Firebase backend adapter (Auth, Firestore, Storage, Functions)
 firebase-config.js           Public Firebase web config (placeholders)
 messaging-config.js          Public EmailJS ids and the email safety limits

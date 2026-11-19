@@ -8,7 +8,9 @@ If `firebase-config.js` still contains the `REPLACE_…` placeholders, the app a
 
 1. Serve the folder (`python -m http.server 8000`) or open the GitHub Pages site.
 2. Create an account in the app, then open `/admin/` in another tab of the **same browser**.
-3. Sign in to the admin console with `admin@daymark.demo` / `Admin@12345`.
+3. Sign in to the admin console with an **administrator account**: one whose email is listed (hashed) in `access-config.js`. Create it in the user app first (it gets unlimited demo tasks), then sign in at `/admin/` with the same email and password. To add an administrator, hash their lower-case email with `node -e "console.log(require('crypto').createHash('sha256').update('someone@example.com').digest('hex'))"` and add the hash to `access-config.js`.
+
+In demo mode all data lives in each visitor's own browser, so the administrator check is a convenience, not security: someone could create an account with the same email in their own browser, but they would only see their own local data. Real enforcement needs the Firebase mode below (custom `admin` claim).
 
 Everything is stored in that browser's `localStorage`, so it does not sync between devices.
 
