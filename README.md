@@ -24,7 +24,7 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 - **Real email** — verified addresses get real reminder emails through EmailJS, even in demo mode. A 6-digit code emailed to the address proves it is theirs first (10-minute expiry, 5 attempts, 60-second resend cooldown, 5 codes an hour, 20 reminder emails a day per member).
 - **Timed tasks** — countdown per task, flicker only while a timer is running, celebration with party poppers on success, “OOPS!” message on a missed timer, task input locks after the 10th free task.
 - **Proof upload** — JPG/PNG/WebP up to 8 MB with a preview.
-- **AI review** — an instant on-device check approves clear photos, rejects blank/blurry/duplicate ones, and sends uncertain ones to a human.
+- **AI review** — an on-device vision model (CLIP) checks that the photo actually shows what the task says. A table photo for a "ceiling" task is rejected, a cluttered table or one covered with bags is rejected for "clean a table", and a matching photo is approved with the reason shown. Blank, blurry and reused photos are rejected, and anything uncertain goes to a human admin. If the model cannot load, the proof goes to an admin instead of being approved.
 - **Manual review** — the proof goes to the **separate admin website**; points are awarded the moment the admin approves.
 - **Live admin console** (`/admin/`) — review queue with images, history, members list with consent flags, and a reminder outbox. It updates live with the user app.
 - **Deadline warnings** — pop-up in the app, an optional browser notification, plus an email and an SMS for members who opted in (each channel verified with a code first).
@@ -37,7 +37,7 @@ This is what GitHub Pages serves. No setup. Accounts, tasks, proof images and th
 
 - Demo admin: `admin@daymark.demo` / `Admin@12345` (shown on the admin sign-in page).
 - **Email reminders are real** (sent from the open page, so the browser tab must be open when the timer gets close). Text messages go through a small Cloudflare Worker that holds the Twilio secrets (`worker/`); until its URL is set in `messaging-config.js` they are **simulated** in the admin *Reminder outbox* (see SETUP.md). On `localhost` email delivery is skipped and the verification code is shown on screen, because EmailJS only accepts the published site's domain.
-- The AI check is an on-device heuristic (sharpness, contrast, exposure, resolution, duplicate detection). It is honest about being a demo and cannot tell *what* is in a photo.
+- The AI check runs in your browser: a quality check (sharpness, contrast, exposure, duplicates) plus the CLIP model, which compares the photo with descriptions built from the task text. The model is about 150 MB and downloads the first time a member opens the proof dialog (the browser caches it afterwards). The photo never leaves the device. It is still an assistive check: it can be fooled by an unrelated photo that happens to look similar, so unclear results go to an admin.
 - Data stays on that one device. Use **Reset demo data** in the admin console to start fresh.
 
 ### 2. Live mode (real accounts, cloud sync, real messages)
@@ -64,7 +64,8 @@ auth.js                      Entry point: sign-in/sign-up UI, picks demo or Fire
 user-app.js                  Dashboard controller shared by both backends (timers, toasts, celebration)
 local-db.js                  Demo backend: accounts, tasks, proofs, points, reminders in localStorage
 demo-backend.js              Wires the demo database to the dashboard
-ai-review.js                 On-device AI proof check
+ai-review.js                 Photo quality and duplicate check
+ai-vision.js                 CLIP task-vs-photo matching and the approve / reject / human decision
 cloud-backend.js             Firebase backend adapter (Auth, Firestore, Storage, Functions)
 firebase-config.js           Public Firebase web config (placeholders)
 messaging-config.js          Public EmailJS ids and the email safety limits

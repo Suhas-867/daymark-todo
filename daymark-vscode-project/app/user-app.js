@@ -231,6 +231,8 @@ export function startUserApp(adapter, options = {}) {
   function openProof(task) {
     proofTask = task; $('#proof-task-title').textContent = task.title; proofFile.value = ''; resetPreview(); $('#proof-status').textContent = ''; $('#proof-status').className = 'dialog-status';
     $('#proof-submit').disabled = false; proofDialog.showModal();
+    const note = $('#ai-model-status'); note.hidden = !adapter.warmUpAi; note.textContent = 'Preparing the AI reviewer…';
+    adapter.warmUpAi?.(percent => { note.textContent = percent >= 100 ? 'AI reviewer ready.' : `Loading the AI reviewer (first time only, about 150 MB): ${percent}%`; })?.then(() => { note.textContent = 'AI reviewer ready.'; });
   }
   proofFile.addEventListener('change', () => {
     const file = proofFile.files[0]; if (!file) { resetPreview(); return; }

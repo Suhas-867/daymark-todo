@@ -2,6 +2,7 @@
 // Everything lives in this browser's localStorage and is shared live with the admin console.
 import { SESSION_KEY, createLocalDb } from './local-db.js';
 import { prepareProofImage, scoreProof } from './ai-review.js';
+import { combineVerdicts, reviewContent, warmUp } from './ai-vision.js';
 import { sendEmail } from './email-service.js';
 import { sendSms, smsReady } from './sms-service.js';
 import { emailLimits } from './messaging-config.js';
@@ -47,6 +48,7 @@ export function createDemoBackend(storage = window.localStorage) {
         async expireTask(task) { return db.expireTask(user.uid, task.id); },
         async deleteTask(task) { db.deleteTask(user.uid, task.id); },
         async savePreferences(preferences) { return db.updatePreferences(user.uid, preferences); },
+        warmUpAi: onProgress => warmUp(onProgress).catch(() => {}),
         supportsVerification: { email: true, sms: smsReady() },
         async sendVerificationCode(channel) {
           const profile = db.getUser(user.uid);
@@ -81,10 +83,14 @@ export function createDemoBackend(storage = window.localStorage) {
     }
   };
 
+  /** Photo quality + duplicate check first, then a vision model checks that the photo matches the task. */
   async function runAiReview(proofId, task, fileName, prepared) {
-    await sleep(1500 + Math.random() * 900); // visible "AI is reviewing" moment
-    const verdict = scoreProof({ stats: prepared.stats, width: prepared.width, height: prepared.height, taskTitle: task.title, fileName });
-    try { db.recordAiResult(proofId, { decision: verdict.decision, reason: `${verdict.reason} (on-device demo check)`, score: verdict.score }); } catch (error) { console.error(error); }
+    const quality = scoreProof({ stats: prepared.stats, width: prepared.width, height: prepared.height, taskTitle: task.title, fileName });
+    let content = null;
+    if (quality.decision !== 'reject') { try { content = await reviewContent(prepared.dataUrl, task.title); } catch (error) { console.error('Vision model unavailable', error); } }
+    else await sleep(900);
+    const verdict = combineVerdicts(quality, content);
+    try { db.recordAiResult(proofId, { decision: verdict.decision, reason: `${verdict.reason} (on-device AI)`, score: verdict.score }); } catch (error) { console.error(error); }
   }
   return backend;
 }
