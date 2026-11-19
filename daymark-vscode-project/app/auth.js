@@ -5,7 +5,7 @@ import { startUserApp } from './user-app.js';
 
 const $ = id => document.getElementById(id);
 const gate = $('auth-gate'), shell = $('app-shell'), form = $('auth-form');
-let backend = null, createMode = true, appStarted = false, activeUserId = null;
+let backend = null, createMode = true, appStarted = false, activeUserId = null, justSignedUp = false;
 
 function setStatus(message, kind = '') { const el = $('auth-status'); el.textContent = message; el.className = `auth-status${kind ? ` is-${kind}` : ''}`; }
 function show(view) { gate.hidden = view !== 'gate'; shell.hidden = view !== 'app'; document.body.classList.toggle('in-app', view === 'app'); }
@@ -43,10 +43,11 @@ form.addEventListener('submit', async event => {
     if (!identifier.trim() || !password) throw new Error('Enter your email or phone number and your password.');
     if (createMode) {
       const typed = $('auth-phone').value.trim();
+      justSignedUp = true;
       await backend.signUp({ name: $('auth-name').value, identifier, extraContact: typed, password, emailReminders: $('consent-email').checked, smsReminders: $('consent-sms').checked });
     } else await backend.signIn({ identifier, password });
     setStatus('');
-  } catch (error) { setStatus(error.message || 'Something went wrong. Please try again.', 'error'); }
+  } catch (error) { justSignedUp = false; setStatus(error.message || 'Something went wrong. Please try again.', 'error'); }
   finally { button.disabled = false; }
 });
 
@@ -55,8 +56,8 @@ async function enterApp(user) {
   appStarted = true; activeUserId = user.uid;
   try {
     const adapter = await backend.createAdapter(user);
-    startUserApp(adapter); show('app');
-  } catch (error) { appStarted = false; activeUserId = null; show('gate'); setStatus(`Could not open your workspace: ${error.message}`, 'error'); }
+    startUserApp(adapter, { justSignedUp }); justSignedUp = false; show('app');
+  } catch (error) { console.error(error); appStarted = false; activeUserId = null; show('gate'); setStatus(`Could not open your workspace: ${error.message}`, 'error'); }
 }
 
 async function boot() {

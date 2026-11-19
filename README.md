@@ -20,13 +20,14 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 ## What works today
 
 - **Accounts** — create an account or sign in with an **email address or a phone number** plus a password. After sign-up the app opens straight away.
-- **Reminder consent** — at sign-up the member opts in separately to email and SMS reminders. If they decline, **Account & reminders** (and the *Deadline alerts* card) lets them enable it later.
+- **Reminder consent** — at sign-up the member opts in separately to email and SMS reminders, with a note that the address and number are shared with the messaging providers. If they decline, **Account & reminders** (and the *Deadline alerts* card) lets them enable it later.
+- **Real email** — verified addresses get real reminder emails through EmailJS, even in demo mode. A 6-digit code emailed to the address proves it is theirs first (10-minute expiry, 5 attempts, 60-second resend cooldown, 5 codes an hour, 20 reminder emails a day per member).
 - **Timed tasks** — countdown per task, flicker only while a timer is running, celebration with party poppers on success, “OOPS!” message on a missed timer, task input locks after the 10th free task.
 - **Proof upload** — JPG/PNG/WebP up to 8 MB with a preview.
 - **AI review** — an instant on-device check approves clear photos, rejects blank/blurry/duplicate ones, and sends uncertain ones to a human.
 - **Manual review** — the proof goes to the **separate admin website**; points are awarded the moment the admin approves.
 - **Live admin console** (`/admin/`) — review queue with images, history, members list with consent flags, and a reminder outbox. It updates live with the user app.
-- **Deadline warnings** — pop-up in the app, an optional browser notification, plus email and SMS reminders for members who opted in.
+- **Deadline warnings** — pop-up in the app, an optional browser notification, plus an email (real) and SMS (simulated for now) for members who opted in.
 
 ## Two ways to run it
 
@@ -35,7 +36,7 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 This is what GitHub Pages serves. No setup. Accounts, tasks, proof images and the review queue are stored in the browser's `localStorage`, shared live between the user app and the admin site through the same origin. Open both in two tabs of the same browser to see a proof appear on the admin page and the points arrive on the user page.
 
 - Demo admin: `admin@daymark.demo` / `Admin@12345` (shown on the admin sign-in page).
-- Email and SMS reminders are **simulated**: they are written to the *Reminder outbox* in the admin console instead of being delivered.
+- **Email reminders are real** (sent from the open page, so the browser tab must be open when the timer gets close). Text messages are still **simulated** in the admin *Reminder outbox* until an SMS relay is connected (see SETUP.md). On `localhost` email delivery is skipped and the verification code is shown on screen, because EmailJS only accepts the published site's domain.
 - The AI check is an on-device heuristic (sharpness, contrast, exposure, resolution, duplicate detection). It is honest about being a demo and cannot tell *what* is in a photo.
 - Data stays on that one device. Use **Reset demo data** in the admin console to start fresh.
 
@@ -66,6 +67,8 @@ demo-backend.js              Wires the demo database to the dashboard
 ai-review.js                 On-device AI proof check
 cloud-backend.js             Firebase backend adapter (Auth, Firestore, Storage, Functions)
 firebase-config.js           Public Firebase web config (placeholders)
+messaging-config.js          Public EmailJS ids and the email safety limits
+email-service.js             Sends email through the EmailJS REST API
 admin/                       Admin website: admin-demo.js (live demo) and admin-cloud.js (Firebase)
 functions/                   Cloud Functions: AI review, points, reminders, admin role
 firestore.rules, storage.rules, firebase.json   Firebase security rules and deployment
@@ -81,4 +84,4 @@ tests/                       Automated tests (npm test)
 
 ## Ideas for next steps
 
-Streaks and weekly leaderboards, task templates, a proof appeal flow, push notifications, real payments through a payment provider, and a vision-model review in demo mode through a small server.
+Real SMS through a small relay (Twilio or an Indian SMS provider), streaks and weekly leaderboards, task templates, a proof appeal flow, push notifications, real payments through a payment provider, and a vision-model review in demo mode through a small server.

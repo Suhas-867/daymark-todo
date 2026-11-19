@@ -10,7 +10,19 @@ If `firebase-config.js` still contains the `REPLACE_…` placeholders, the app a
 2. Create an account in the app, then open `/admin/` in another tab of the **same browser**.
 3. Sign in to the admin console with `admin@daymark.demo` / `Admin@12345`.
 
-Everything is stored in that browser's `localStorage`, so it does not sync between devices. Email and SMS reminders are simulated in the admin *Reminder outbox*.
+Everything is stored in that browser's `localStorage`, so it does not sync between devices.
+
+### Real email in demo mode (EmailJS)
+
+Verified members get real reminder emails. `messaging-config.js` holds the public EmailJS ids (service, template, public key). To use your own account:
+
+1. Create an EmailJS account, connect an email service and create a template with **To email** = `{{to_email}}`, and the variables `{{name}}`, `{{time}}`, `{{message}}` (optionally `{{subject}}` as the template subject).
+2. Put your Service ID, Template ID and Public Key in `messaging-config.js`. These are public identifiers; never add a private key.
+3. In EmailJS → Security add your site's origin (for example `https://suhas-867.github.io`) as the allowed domain if your plan allows it. The free plan allows 200 requests a month, one domain, and shows a footer.
+
+Emails are sent from the open page. On `localhost` delivery is skipped (EmailJS rejects that origin) and the verification code is displayed instead. The email path has limits: 5 verification codes an hour, a 60-second resend cooldown, 5 wrong attempts per code and 20 reminder emails a day per member.
+
+Text messages stay simulated in the admin *Reminder outbox* until an SMS relay is added (`smsConfig.relayUrl` in `messaging-config.js`). A relay is a tiny server-side function that keeps the SMS provider secret.
 
 ## Live mode (real accounts, sync across devices, real messages)
 

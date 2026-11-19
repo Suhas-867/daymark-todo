@@ -82,8 +82,8 @@ function memberRow(member) {
 }
 function messageRow(message) {
   const row = el('article', 'row'), main = el('div', 'row-main');
-  main.append(el('strong', '', message.channel === 'email' ? `📧 Email to ${message.to}` : `💬 SMS to ${message.to}`), el('span', 'muted small', message.subject ? `${message.subject} — ${message.body}` : message.body));
-  row.append(main, el('span', 'meta', when(message.at)), el('span', 'badge badge-off', 'Simulated')); return row;
+  main.append(el('strong', '', message.channel === 'email' ? `📧 Email to ${message.to}` : `💬 SMS to ${message.to}`), el('span', 'muted small', (message.subject ? `${message.subject} — ${message.body}` : message.body) + (message.detail ? ` (${message.detail})` : '')));
+  row.append(main, el('span', 'meta', when(message.at)), el('span', 'badge ' + ({ sent: 'badge-ok', failed: 'badge-bad', skipped: 'badge-wait' }[message.status] || 'badge-off'), ({ sent: 'Delivered', failed: 'Failed', skipped: 'Skipped', queued: 'Sending…' }[message.status] || 'Simulated'))); return row;
 }
 
 sync();

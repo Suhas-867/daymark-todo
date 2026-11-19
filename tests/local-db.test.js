@@ -158,17 +158,76 @@ test('detects a proof photo reused for another task', async () => {
   assert.equal(db.findDuplicate(user.uid, 'ffffffffffffffff', second), null);
 });
 
-test('reminders are sent once, only to opted-in channels, and listed in the outbox', async () => {
+async function verifyEmail(db, uid) {
+  const { code } = await db.startEmailVerification(uid);
+  await db.confirmEmailVerification(uid, code);
+}
+
+test('email verification: wrong codes are counted, the right code verifies, changing the email resets it', async () => {
+  const { db, clock } = setup(); const user = await member(db);
+  await assert.rejects(db.confirmEmailVerification(user.uid, '123456'), /Request a new code/);
+  const { code, email } = await db.startEmailVerification(user.uid);
+  assert.equal(email, 'asha@example.com'); assert.match(code, /^\d{6}$/);
+  assert.ok(!JSON.stringify(db.read()).includes(`"${code}"`), 'the code is stored hashed');
+  await assert.rejects(db.startEmailVerification(user.uid), /seconds/);
+  const wrong = code === '000000' ? '111111' : '000000';
+  await assert.rejects(db.confirmEmailVerification(user.uid, wrong), /4 attempts left/);
+  assert.equal(db.getUser(user.uid).emailVerified, false);
+  await db.confirmEmailVerification(user.uid, code);
+  assert.equal(db.getUser(user.uid).emailVerified, true);
+  await assert.rejects(db.startEmailVerification(user.uid), /already verified/);
+  clock.t += 5_000;
+  db.updatePreferences(user.uid, { name: 'Asha', email: 'new@example.com', phone: '', emailReminders: true, smsReminders: false });
+  assert.equal(db.getUser(user.uid).emailVerified, false);
+});
+
+test('email codes expire, lock after too many wrong tries, and are rate limited per hour', async () => {
+  const { db, clock } = setup(); const user = await member(db);
+  let { code } = await db.startEmailVerification(user.uid);
+  clock.t += 11 * 60_000;
+  await assert.rejects(db.confirmEmailVerification(user.uid, code), /expired/);
+  ({ code } = await db.startEmailVerification(user.uid));
+  const wrong = code === '000000' ? '111111' : '000000';
+  for (let i = 0; i < 5; i++) await assert.rejects(db.confirmEmailVerification(user.uid, wrong), /not correct/);
+  await assert.rejects(db.confirmEmailVerification(user.uid, code), /Too many wrong attempts/);
+  for (let i = 0; i < 3; i++) { clock.t += 61_000; await db.startEmailVerification(user.uid); }
+  clock.t += 61_000;
+  await assert.rejects(db.startEmailVerification(user.uid), /Too many codes/);
+});
+
+test('reminders are recorded once, only for opted-in channels; email needs a verified address', async () => {
   const { db } = setup();
   const user = await member(db, { extraContact: '9876543210', emailReminders: true, smsReminders: true });
-  const task = db.createTask(user.uid, 'session-1', { title: 'Call home', durationMinutes: 5 });
-  const sent = db.sendDeadlineReminder(user.uid, task.id);
-  assert.deepEqual(sent.map(m => m.channel).sort(), ['email', 'sms']);
-  assert.deepEqual(db.sendDeadlineReminder(user.uid, task.id), []);
-  assert.equal(db.adminSnapshot().outbox.length, 2);
+  const first = db.createTask(user.uid, 'session-1', { title: 'Call home', durationMinutes: 5 });
+  const unverified = db.sendDeadlineReminder(user.uid, first.id);
+  assert.deepEqual(unverified.map(m => `${m.channel}:${m.status}`).sort(), ['email:skipped', 'sms:simulated']);
+  assert.match(unverified.find(m => m.channel === 'email').detail, /not verified/);
+  await verifyEmail(db, user.uid);
+  const second = db.createTask(user.uid, 'session-1', { title: 'Water plants', durationMinutes: 5 });
+  const sent = db.sendDeadlineReminder(user.uid, second.id);
+  assert.deepEqual(sent.map(m => `${m.channel}:${m.status}`).sort(), ['email:queued', 'sms:simulated']);
+  assert.deepEqual(db.sendDeadlineReminder(user.uid, second.id), []);
+  const emailEntry = sent.find(m => m.channel === 'email');
+  db.settleOutbox(emailEntry.id, 'sent');
+  assert.equal(db.adminSnapshot().outbox.find(m => m.id === emailEntry.id).status, 'sent');
+  const third = db.createTask(user.uid, 'session-1', { title: 'Third', durationMinutes: 5 });
+  assert.equal(db.sendDeadlineReminder(user.uid, third.id, { smsLive: true }).find(m => m.channel === 'sms').status, 'queued');
   const other = await db.signUp({ identifier: 'quiet@example.com', password: 'secret-pass' }); db.startSession(other.uid, 's-2');
   const quietTask = db.createTask(other.uid, 's-2', { title: 'Quiet', durationMinutes: 5 });
   assert.deepEqual(db.sendDeadlineReminder(other.uid, quietTask.id), []);
+});
+
+test('daily email limit stops reminders', async () => {
+  const { db } = setup(); const user = await member(db, { emailReminders: true });
+  await verifyEmail(db, user.uid);
+  db.activateMembership(user.uid, 'session-1');
+  const statuses = [];
+  for (let i = 0; i < 22; i++) {
+    const task = db.createTask(user.uid, 'session-1', { title: `T${i}`, durationMinutes: 5 });
+    statuses.push(db.sendDeadlineReminder(user.uid, task.id)[0].status);
+  }
+  assert.equal(statuses.filter(status => status === 'queued').length, 20);
+  assert.equal(statuses.at(-1), 'skipped');
 });
 
 test('deleting a task removes its review entry and proof image', async () => {

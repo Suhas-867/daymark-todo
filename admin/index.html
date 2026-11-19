@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="admin.css?v=studio-1">
-  <script type="module" src="admin.js?v=studio-1"></script>
+  <link rel="stylesheet" href="admin.css?v=aurora-1">
+  <script type="module" src="admin.js?v=aurora-1"></script>
 </head>
 <body>
   <header class="admin-top">
@@ -47,7 +47,7 @@
     <section id="panel-pending" class="panel-view"><div id="cards" class="cards"></div></section>
     <section id="panel-reviewed" class="panel-view" hidden><div id="reviewed" class="rows"></div></section>
     <section id="panel-members" class="panel-view" hidden><div id="members" class="rows"></div></section>
-    <section id="panel-outbox" class="panel-view" hidden><p class="muted note">Demo mode: messages are simulated and listed here instead of being delivered. Real email/SMS delivery runs from the Firebase backend (see SETUP.md).</p><div id="outbox" class="rows"></div></section>
+    <section id="panel-outbox" class="panel-view" hidden><p class="muted note">Email reminders to verified addresses are really sent (shown as Delivered). Text messages are simulated until an SMS relay is connected (see SETUP.md).</p><div id="outbox" class="rows"></div></section>
     <footer class="admin-foot" id="demo-foot" hidden><span>Demo data lives in this browser only.</span><button class="btn btn-danger btn-sm" id="reset-demo" type="button">Reset demo data</button></footer>
   </main>
 </body>

@@ -6,7 +6,8 @@
 //   subscribe(listener) -> unsubscribe        listener({ tasks, session, profile })
 //   createTask({ title, durationMinutes }), activateMembership() -> { expiresAt, alreadyActive },
 //   submitProof({ task, file, mode }), expireTask(task), deleteTask(task),
-//   savePreferences(prefs) -> profile, sendReminder(task) -> [{channel, to}], signOut()
+//   savePreferences(prefs) -> profile, sendReminder(task) -> [{channel, to, status, detail}], signOut()
+//   optional: supportsEmailVerification, sendEmailCode() -> {email, delivered, devCode}, verifyEmailCode(code)
 // }
 import { FREE_TASK_LIMIT } from './rewards.js';
 
@@ -21,7 +22,9 @@ export function formatClock(ms) {
 const dateText = (ms, long = false) => ms ? new Intl.DateTimeFormat(undefined, long ? { day: 'numeric', month: 'short', year: 'numeric' } : { month: 'short', day: 'numeric' }).format(new Date(ms)) : '';
 const parseMs = value => (typeof value === 'number' ? value : Date.parse(value || ''));
 
-export function startUserApp(adapter) {
+const RING_BIG = 2 * Math.PI * 58, RING_SMALL = 2 * Math.PI * 18;
+
+export function startUserApp(adapter, options = {}) {
   const list = $('#task-list'), form = $('#task-form'), input = $('#task-input');
   let state = { tasks: [], session: { points: 0, earnedRupees: 0, membershipExpiresAt: null }, profile: {} };
   let filter = 'all', proofTask = null, overlayTimer;
@@ -76,6 +79,7 @@ export function startUserApp(adapter) {
     $('#points-total').textContent = points.toLocaleString();
     $('#milestone-copy').textContent = `${milestone.toLocaleString()} / 1,000 to next reward`;
     $('#milestone-bar').style.width = `${milestone / 10}%`; $('#milestone-bar').parentElement.setAttribute('aria-valuenow', String(milestone));
+    $('#points-ring').style.strokeDashoffset = String(RING_BIG * (1 - milestone / 1000));
     $('#reward-total').textContent = `₹${session.earnedRupees || 0}`;
 
     $('#membership-status').textContent = member ? 'Active' : trialLeft ? `Free trial · ${trialLeft} left` : 'Trial finished';
@@ -102,17 +106,31 @@ export function startUserApp(adapter) {
     $('#user-name').textContent = name; $('#user-contact').textContent = profile.email || profile.phone || ''; $('#user-avatar').textContent = (name.trim()[0] || 'D').toUpperCase();
     const hour = new Date().getHours(), greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
     $('#greeting').textContent = profile.name ? `${greet}, ${profile.name.split(' ')[0]}` : greet;
-    const setState = (id, on) => { const el = $(id); el.textContent = on ? 'On' : 'Off'; el.className = on ? 'state-on' : 'state-off'; };
-    setState('#reminder-email-state', profile.emailReminders); setState('#reminder-sms-state', profile.smsReminders);
+    const setState = (id, on, label = 'On', cls = 'state-on') => { const el = $(id); el.textContent = on ? label : 'Off'; el.className = on ? cls : 'state-off'; };
+    const canVerify = Boolean(adapter.supportsEmailVerification), needsVerify = canVerify && profile.email && profile.emailReminders && !profile.emailVerified;
+    setState('#reminder-email-state', profile.emailReminders, needsVerify ? 'Verify email' : 'On', needsVerify ? 'state-warn' : 'state-on'); setState('#reminder-sms-state', profile.smsReminders);
+    $('#verify-open').hidden = !needsVerify;
     const any = profile.emailReminders || profile.smsReminders;
-    $('#reminder-note').textContent = any ? 'You will be warned shortly before a timer ends.' : 'Turn on reminders to be warned before a timer runs out. Pop-ups in this app are always on.';
+    $('#reminder-note').textContent = needsVerify ? 'Confirm your email address with a 6-digit code so reminders can be delivered.' : any ? 'You will be warned shortly before a timer ends.' : 'Turn on reminders to be warned before a timer runs out. Pop-ups in this app are always on.';
     $('#reminder-enable').textContent = any ? 'Manage reminders' : 'Enable reminders'; $('#reminder-enable').className = any ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm';
   }
 
+  function paintRing(ring) {
+    const left = Math.max(0, Number(ring.dataset.deadline) - Date.now()), fraction = Math.min(1, left / Number(ring.dataset.total));
+    const fg = ring.querySelector('.r-fg'); fg.style.strokeDasharray = String(RING_SMALL); fg.style.strokeDashoffset = String(RING_SMALL * (1 - fraction));
+    ring.classList.toggle('ring-urgent', left < 60_000);
+  }
   function taskRow(task) {
     const row = document.createElement('li'), running = isRunning(task), label = statusLabel(task);
     row.className = `task-row${running ? ' is-running' : ''}${task.status === 'approved' ? ' is-complete' : ''}${task.status === 'failed' ? ' is-missed' : ''}${task.status === 'review' ? ' is-review' : ''}`;
-    const icon = document.createElement('span'); icon.className = 'task-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = task.status === 'approved' ? '✓' : task.status === 'failed' ? '!' : task.status === 'review' ? '◐' : '◔';
+    let icon;
+    if (running) {
+      icon = document.createElement('span'); icon.className = 'task-icon task-icon-ring'; icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = '<svg class="task-ring" viewBox="0 0 44 44"><circle class="r-bg" cx="22" cy="22" r="18"/><circle class="r-fg" cx="22" cy="22" r="18"/></svg>';
+      const ring = icon.querySelector('svg'); ring.dataset.deadline = String(parseMs(task.deadlineAt)); ring.dataset.total = String(Math.max(1, (task.durationMinutes || 1) * 60_000)); paintRing(ring);
+    } else {
+      icon = document.createElement('span'); icon.className = 'task-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = task.status === 'approved' ? '✓' : task.status === 'failed' ? '!' : task.status === 'review' ? '◐' : '◔';
+    }
     const main = document.createElement('div'); main.className = 'task-main';
     const title = document.createElement('span'); title.className = 'task-title'; title.textContent = task.title;
     const meta = document.createElement('span'); meta.className = 'task-meta'; meta.textContent = `${dateText(parseMs(task.createdAt))} · ${task.durationMinutes >= 60 && task.durationMinutes % 60 === 0 ? `${task.durationMinutes / 60} hr` : `${task.durationMinutes} min`} timer`;
@@ -164,10 +182,17 @@ export function startUserApp(adapter) {
         systemNotification('Daymark: time is running out', `“${task.title}” has about ${wording} left.`);
         try {
           const sent = await adapter.sendReminder(task);
-          for (const message of sent || []) toast({ title: message.channel === 'email' ? '📧 Reminder email sent' : '💬 Reminder text sent', body: `${message.to}${adapter.mode === 'demo' ? ' (simulated in demo mode)' : ''}`, kind: 'info', timeout: 8000 });
+          for (const message of sent || []) {
+            const channel = message.channel === 'email' ? 'email' : 'text message';
+            if (message.status === 'sent') toast({ title: `📧 Reminder ${channel} sent`, body: message.to, kind: 'success', timeout: 8000 });
+            else if (message.status === 'failed') toast({ title: `Could not send the reminder ${channel}`, body: message.detail || message.to, kind: 'warn', timeout: 10000 });
+            else if (message.status === 'skipped') toast({ title: `Reminder ${channel} skipped`, body: message.detail || 'Not sent.', kind: 'info', timeout: 8000 });
+            else toast({ title: `💬 Reminder ${channel} (simulated)`, body: `${message.to} · real delivery needs a messaging relay`, kind: 'info', timeout: 8000 });
+          }
         } catch (error) { console.error(error); }
       }
     }
+    document.querySelectorAll('.task-ring[data-deadline]').forEach(paintRing);
     document.querySelectorAll('.task-timer[data-deadline]').forEach(el => {
       const left = Number(el.dataset.deadline) - Date.now();
       if (left <= 0) return; // the snapshot after expiry re-renders this row
@@ -239,7 +264,7 @@ export function startUserApp(adapter) {
     $('#set-email-consent').checked = Boolean(profile.emailReminders); $('#set-sms-consent').checked = Boolean(profile.smsReminders);
     $('#settings-status').textContent = ''; $('#settings-status').className = 'dialog-status'; notifyLabel(); settings.showModal();
   }
-  for (const id of ['#account-button', '#topbar-settings', '#reminder-enable']) $(id).addEventListener('click', openSettings);
+  for (const id of ['#account-button', '#reminder-enable']) $(id).addEventListener('click', openSettings);
   $('#settings-close').addEventListener('click', () => settings.close());
   $('#notify-enable').addEventListener('click', async () => { try { await Notification.requestPermission(); } catch { /* ignored */ } notifyLabel(); });
   $('#signout-button').addEventListener('click', () => { settings.close(); adapter.signOut(); });
@@ -247,10 +272,42 @@ export function startUserApp(adapter) {
     event.preventDefault(); const status = $('#settings-status'), button = $('#settings-save'); button.disabled = true;
     try {
       await adapter.savePreferences({ name: $('#set-name').value, email: $('#set-email').value, phone: $('#set-phone').value, emailReminders: $('#set-email-consent').checked, smsReminders: $('#set-sms-consent').checked });
-      status.textContent = 'Preferences saved.'; status.className = 'dialog-status is-ok'; setTimeout(() => settings.close(), 700);
+      status.textContent = 'Preferences saved.'; status.className = 'dialog-status is-ok';
+      setTimeout(() => { settings.close(); const profile = state.profile; if (adapter.supportsEmailVerification && profile.email && profile.emailReminders && !profile.emailVerified) openVerify(false); }, 700);
     } catch (error) { status.textContent = messageOf(error); status.className = 'dialog-status is-error'; }
     finally { button.disabled = false; }
   });
+
+  /* ---------- email verification ---------- */
+  const verifyDialog = $('#verify-dialog');
+  function verifyMessage(text, kind = '') { const el = $('#verify-status'); el.textContent = text; el.className = `dialog-status${kind ? ` is-${kind}` : ''}`; }
+  async function sendCode(automatic = false) {
+    const button = $('#verify-resend'); button.disabled = true;
+    try {
+      const result = await adapter.sendEmailCode();
+      $('#verify-copy').textContent = result.delivered ? `We emailed a 6-digit code to ${result.email}. It can take a minute to arrive; check spam too.` : `Local development: no email was sent to ${result.email}. Use the test code shown on screen.`;
+      verifyMessage(result.delivered ? 'Code sent. Enter it below.' : 'Local development: email delivery is skipped.', 'ok');
+      if (result.devCode) toast({ title: 'Local test code', body: `Your code is ${result.devCode} (shown only when running on localhost).`, kind: 'info', timeout: 20000 });
+    } catch (error) { verifyMessage(automatic ? `${messageOf(error)} If you already have a code, enter it below.` : messageOf(error), 'error'); }
+    finally { button.disabled = false; }
+  }
+  function openVerify(automatic = false) {
+    if (!adapter.supportsEmailVerification || !state.profile.email) return;
+    $('#verify-code').value = ''; verifyMessage(''); $('#verify-copy').textContent = `We will email a 6-digit code to ${state.profile.email} to confirm your address.`;
+    if (!verifyDialog.open) verifyDialog.showModal(); $('#verify-code').focus(); sendCode(automatic);
+  }
+  $('#verify-open').addEventListener('click', () => openVerify(false));
+  $('#verify-close').addEventListener('click', () => verifyDialog.close());
+  $('#verify-resend').addEventListener('click', () => sendCode(false));
+  $('#verify-form').addEventListener('submit', async event => {
+    event.preventDefault(); const button = $('#verify-submit'); button.disabled = true;
+    try { await adapter.verifyEmailCode($('#verify-code').value); verifyMessage('Email verified. Reminders are on.', 'ok'); toast({ title: '✅ Email verified', body: 'Deadline reminders will now be emailed to you.', kind: 'success' }); setTimeout(() => verifyDialog.close(), 700); }
+    catch (error) { verifyMessage(messageOf(error), 'error'); }
+    finally { button.disabled = false; }
+  });
+  if (options.justSignedUp && adapter.supportsEmailVerification) {
+    const unsubscribeOnce = adapter.subscribe(snapshot => { if (snapshot.profile?.email && snapshot.profile.emailReminders && !snapshot.profile.emailVerified) { state = snapshot; setTimeout(() => openVerify(true), 400); } queueMicrotask(() => unsubscribeOnce?.()); });
+  }
 
   $('#today-label').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
   $('#demo-banner').hidden = adapter.mode !== 'demo';

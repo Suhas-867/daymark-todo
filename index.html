@@ -3,34 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f172a">
-  <meta name="description" content="Daymark - set a timer, finish the task, submit proof and earn points.">
-  <title>Daymark - finish what you start</title>
+  <meta name="theme-color" content="#1b1140">
+  <meta name="description" content="Daymark - set a timer, finish the task, show your proof and earn points.">
+  <title>Daymark - beat the clock, earn the reward</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=studio-1">
-  <script type="module" src="auth.js?v=studio-1"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=aurora-1">
+  <script type="module" src="auth.js?v=aurora-1"></script>
 </head>
 <body>
   <noscript><p style="padding:24px">Daymark needs JavaScript to run.</p></noscript>
 
   <!-- ============ Sign in / create account ============ -->
   <section class="auth-page" id="auth-gate">
-    <aside class="auth-brand" aria-hidden="true">
-      <a class="brand brand-light" href="#"><span class="brand-mark">d</span><span>daymark</span></a>
-      <div class="auth-pitch">
-        <p class="pill">Focus club</p>
-        <h2>Finish what you start.<br>Get rewarded for it.</h2>
-        <ul class="pitch-list">
-          <li><span>01</span><div><strong>Set a task and a timer</strong>Anything from 1 minute to 24 hours.</div></li>
-          <li><span>02</span><div><strong>Upload proof, get reviewed</strong>AI checks it instantly, or send it to a human admin.</div></li>
-          <li><span>03</span><div><strong>Earn points and rewards</strong>+100 on time, a demo reward every 1,000 points.</div></li>
-        </ul>
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="auth-stage">
+      <div class="auth-hero">
+        <a class="brand brand-light" href="#"><span class="brand-mark">d</span><span>daymark</span></a>
+        <h2>Beat the clock.<br><span class="grad-text">Earn the reward.</span></h2>
+        <p class="auth-lead">Set a task, start a timer, show your proof and turn focus into points.</p>
+        <div class="float-cards" aria-hidden="true">
+          <div class="fc fc-task"><svg class="mini-ring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" class="r-bg"/><circle cx="22" cy="22" r="18" class="r-fg"/></svg><div><b>Finish the report</b><span>12:40 left</span></div></div>
+          <div class="fc fc-points"><b>+100</b><span>points · on time 🎉</span></div>
+          <div class="fc fc-reward"><b>₹30</b><span>reward unlocked ✨</span></div>
+        </div>
+        <ul class="trust-chips"><li>10 free tasks</li><li>AI + human review</li><li>Email &amp; SMS reminders</li></ul>
       </div>
-      <p class="auth-foot">Prototype · no real payments or payouts</p>
-    </aside>
-    <div class="auth-panel">
+
       <form class="auth-card" id="auth-form" novalidate>
         <a class="brand brand-dark auth-mobile-brand" href="#"><span class="brand-mark">d</span><span>daymark</span></a>
         <div class="auth-tabs" role="tablist" aria-label="Account">
@@ -48,8 +48,9 @@
         <fieldset class="consent-box" id="consent-box">
           <legend>Deadline reminders</legend>
           <p>Allow Daymark to message you when a task timer is almost up. You can change this any time in Settings.</p>
-          <label class="check-row"><input id="consent-email" type="checkbox"><span>Email me deadline reminders</span></label>
+          <label class="check-row"><input id="consent-email" type="checkbox"><span>Email me deadline reminders <small>(we will email a code to confirm your address)</small></span></label>
           <label class="check-row"><input id="consent-sms" type="checkbox"><span>Text me deadline reminders (SMS)</span></label>
+          <p class="privacy-note">If you opt in, your email address and phone number are shared with our messaging providers only to deliver these messages.</p>
         </fieldset>
 
         <button class="btn btn-primary btn-block" type="submit" id="auth-submit">Create account</button>
@@ -67,59 +68,74 @@
 
   <!-- ============ App ============ -->
   <div class="app-shell" id="app-shell" hidden>
-    <aside class="sidebar" aria-label="Main navigation">
-      <a class="brand brand-light" href="#today" aria-label="Daymark home"><span class="brand-mark">d</span><span>daymark</span></a>
-      <nav class="nav-list">
-        <button class="nav-item active" data-filter="all" aria-pressed="true"><span class="nav-icon" aria-hidden="true">▤</span><span>All tasks</span><span class="nav-count" id="all-count">0</span></button>
-        <button class="nav-item" data-filter="active" aria-pressed="false"><span class="nav-icon" aria-hidden="true">◔</span><span>In progress</span><span class="nav-count" id="active-count">0</span></button>
-        <button class="nav-item" data-filter="completed" aria-pressed="false"><span class="nav-icon" aria-hidden="true">✓</span><span>Completed</span><span class="nav-count" id="completed-count">0</span></button>
+    <div class="aurora aurora-soft" aria-hidden="true"><i></i><i></i><i></i></div>
+    <header class="topnav">
+      <a class="brand brand-dark" href="#today" aria-label="Daymark home"><span class="brand-mark">d</span><span>daymark</span></a>
+      <nav class="nav-pills" aria-label="Task views">
+        <button class="nav-item active" data-filter="all" aria-pressed="true"><span>All tasks</span><b class="nav-count" id="all-count">0</b></button>
+        <button class="nav-item" data-filter="active" aria-pressed="false"><span>In progress</span><b class="nav-count" id="active-count">0</b></button>
+        <button class="nav-item" data-filter="completed" aria-pressed="false"><span>Completed</span><b class="nav-count" id="completed-count">0</b></button>
       </nav>
-      <div class="sidebar-card">
-        <span class="pill pill-dark">Focus club</span>
-        <strong>₹99 / month</strong>
-        <p>10 timed tasks free, then membership keeps you going.</p>
+      <div class="nav-right">
+        <span class="live-chip"><span class="live-dot"></span>Live</span>
+        <button class="profile-btn" id="account-button" type="button" aria-label="Account and reminders"><span class="avatar" id="user-avatar">D</span><span class="profile-text"><strong id="user-name">My account</strong><small id="user-contact"></small></span><span class="gear" aria-hidden="true">⚙</span></button>
       </div>
-      <div class="sidebar-footer">
-        <span class="avatar" id="user-avatar">D</span>
-        <span class="sidebar-user"><strong id="user-name">My account</strong><small id="user-contact"></small></span>
-        <button class="icon-btn icon-btn-light" id="account-button" type="button" aria-label="Account and reminders" title="Account &amp; reminders">⚙</button>
-      </div>
-    </aside>
+    </header>
 
     <main class="main-content" id="today">
-      <div class="demo-banner" id="demo-banner" hidden><strong>Demo mode</strong><span>Data stays in this browser. Open <a href="admin/" target="_blank" rel="noopener">the admin site</a> in another tab to review proofs live. Email and SMS reminders are simulated.</span></div>
-      <header class="topbar">
-        <div><p class="eyebrow" id="today-label"></p><h1 id="greeting">Welcome back</h1></div>
-        <div class="topbar-actions"><span class="live-chip"><span class="live-dot"></span>Live</span><button class="btn btn-ghost" id="topbar-settings" type="button">Account &amp; reminders</button></div>
-      </header>
+      <div class="demo-banner" id="demo-banner" hidden><strong>Demo mode</strong><span>Data stays in this browser. Open <a href="admin/" target="_blank" rel="noopener">the admin site</a> in another tab to review proofs live. Verified emails are really sent; text messages are simulated.</span></div>
 
-      <section class="kpis" aria-label="Your progress">
-        <article class="kpi kpi-points"><span class="kpi-label">Points</span><strong id="points-total">0</strong><div class="milestone-track" role="progressbar" aria-label="Progress to the next reward" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0"><span id="milestone-bar"></span></div><small id="milestone-copy">0 / 1,000 to next reward</small></article>
-        <article class="kpi"><span class="kpi-label">Demo rewards earned</span><strong id="reward-total">₹0</strong><small>₹30 for every 1,000 points</small></article>
-        <article class="kpi"><span class="kpi-label">Membership</span><strong id="membership-status">Free trial</strong><small id="membership-expiry">10 timed tasks free.</small><button class="btn btn-accent btn-sm" id="membership-button" type="button">Activate membership · ₹99</button></article>
-        <article class="kpi"><span class="kpi-label">Today</span><strong id="progress-percent">0%</strong><div class="progress-track"><span id="progress-bar"></span></div><small id="progress-fraction">0 of 0 done</small></article>
+      <section class="hero">
+        <div class="hero-card">
+          <div class="hero-copy">
+            <p class="eyebrow" id="today-label"></p>
+            <h1 id="greeting">Welcome back</h1>
+            <p class="hero-sub">Finish a task before its timer ends and get your proof approved to earn <b>+100 points</b>.</p>
+            <ul class="rule-chips"><li>⏱ Miss the timer: −500</li><li>🎁 ₹30 every 1,000 points</li></ul>
+            <div class="hero-mini">
+              <div><span>Demo rewards</span><strong id="reward-total">₹0</strong></div>
+              <div><span>Done today</span><strong id="progress-percent">0%</strong><i class="progress-track"><span id="progress-bar"></span></i><small id="progress-fraction">0 of 0 done</small></div>
+            </div>
+          </div>
+          <div class="hero-ring">
+            <svg viewBox="0 0 140 140" class="big-ring" role="img" aria-label="Progress to the next reward"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd86b"/><stop offset="1" stop-color="#ff7ab6"/></linearGradient></defs><circle cx="70" cy="70" r="58" class="ring-bg"/><circle cx="70" cy="70" r="58" class="ring-fg" id="points-ring"/></svg>
+            <div class="ring-center"><strong id="points-total">0</strong><span>points</span></div>
+            <p class="ring-caption" id="milestone-copy">0 / 1,000 to next reward</p>
+            <div class="milestone-track" role="progressbar" aria-label="Progress to the next reward" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0"><span id="milestone-bar"></span></div>
+          </div>
+        </div>
+        <aside class="member-card" aria-labelledby="membership-title">
+          <p class="eyebrow">Membership</p>
+          <h2 id="membership-status">Free trial</h2>
+          <p class="member-sub" id="membership-expiry">10 timed tasks free.</p>
+          <p class="member-price"><b>₹99</b> / month <span>demo only · no payment</span></p>
+          <button class="btn btn-sun btn-block" id="membership-button" type="button">Activate membership · ₹99</button>
+        </aside>
+      </section>
+
+      <section class="panel composer-panel" aria-label="Add a task">
+        <form class="composer" id="task-form"><label class="sr-only" for="task-input">Add a timed task</label><input id="task-input" name="task" type="text" maxlength="120" placeholder="What will you get done?" autocomplete="off" required><label class="sr-only" for="task-duration">Time limit</label><select class="timer-select" id="task-duration" name="duration"><option value="1">1 min</option><option value="5">5 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="custom">Custom</option></select><label class="sr-only" for="custom-duration">Custom duration in minutes, maximum 1440</label><input class="custom-duration" id="custom-duration" type="number" min="1" max="1440" step="1" value="90" aria-label="Custom duration in minutes (max 1440)" hidden><button class="btn btn-primary" type="submit" id="task-add">Start the clock</button></form>
+        <p class="trial-lock-message" id="trial-lock-message" role="status" aria-live="polite" hidden>Your 10 free task trials are over. Get membership for full access.</p>
       </section>
 
       <div class="content-grid">
         <section class="panel task-section" aria-labelledby="list-heading">
-          <div class="panel-head"><div><p class="eyebrow">Your tasks</p><h2 id="list-heading">All tasks <span id="heading-count">0</span></h2></div><button class="btn btn-ghost btn-sm" id="clear-completed" type="button" hidden>Clear completed</button></div>
-          <form class="composer" id="task-form"><label class="sr-only" for="task-input">Add a timed task</label><input id="task-input" name="task" type="text" maxlength="120" placeholder="What will you get done?" autocomplete="off" required><label class="sr-only" for="task-duration">Time limit</label><select class="timer-select" id="task-duration" name="duration"><option value="1">1 min</option><option value="5">5 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="custom">Custom</option></select><label class="sr-only" for="custom-duration">Custom duration in minutes, maximum 1440</label><input class="custom-duration" id="custom-duration" type="number" min="1" max="1440" step="1" value="90" aria-label="Custom duration in minutes (max 1440)" hidden><button class="btn btn-primary" type="submit" id="task-add">Start task</button></form>
-          <p class="trial-lock-message" id="trial-lock-message" role="status" aria-live="polite" hidden>Your 10 free task trials are over. Get membership for full access.</p>
-          <div class="list-toolbar"><span id="list-summary">0 tasks</span><div class="filter-pills" role="group" aria-label="Filter tasks"><button class="filter-pill selected" data-filter="all" type="button" aria-pressed="true">All</button><button class="filter-pill" data-filter="active" type="button" aria-pressed="false">Open</button><button class="filter-pill" data-filter="completed" type="button" aria-pressed="false">Done</button></div></div>
+          <div class="panel-head"><div><p class="eyebrow">Your tasks</p><h2 id="list-heading">All tasks <span id="heading-count">0</span></h2></div><div class="head-tools"><div class="filter-pills" role="group" aria-label="Filter tasks"><button class="filter-pill selected" data-filter="all" type="button" aria-pressed="true">All</button><button class="filter-pill" data-filter="active" type="button" aria-pressed="false">Open</button><button class="filter-pill" data-filter="completed" type="button" aria-pressed="false">Done</button></div><button class="btn btn-ghost btn-sm" id="clear-completed" type="button" hidden>Clear done</button></div></div>
+          <p class="list-summary" id="list-summary">0 tasks</p>
           <ul class="task-list" id="task-list" aria-live="polite"></ul>
-          <div class="empty-state" id="empty-state"><div class="empty-art" aria-hidden="true">◔</div><h3 id="empty-title">No tasks yet</h3><p id="empty-copy">Add a task, pick a timer and start the clock.</p></div>
+          <div class="empty-state" id="empty-state"><div class="empty-art" aria-hidden="true"><i></i><i></i><i></i></div><h3 id="empty-title">No tasks yet</h3><p id="empty-copy">Add a task, pick a timer and start the clock.</p></div>
         </section>
 
         <aside class="rail">
-          <section class="panel rail-card" id="reminder-card" aria-labelledby="reminder-title">
+          <section class="panel rail-card reminder-card" id="reminder-card" aria-labelledby="reminder-title">
             <p class="eyebrow">Reminders</p><h2 id="reminder-title">Deadline alerts</h2>
-            <ul class="status-list"><li><span>Email</span><b id="reminder-email-state" class="state-off">Off</b></li><li><span>Text message</span><b id="reminder-sms-state" class="state-off">Off</b></li></ul>
+            <ul class="status-list"><li><span>📧 Email</span><b id="reminder-email-state" class="state-off">Off</b></li><li><span>💬 Text message</span><b id="reminder-sms-state" class="state-off">Off</b></li></ul>
             <p class="rail-note" id="reminder-note">Turn on reminders to be warned before a timer runs out.</p>
-            <button class="btn btn-primary btn-sm" id="reminder-enable" type="button">Enable reminders</button>
+            <div class="rail-actions"><button class="btn btn-primary btn-sm" id="reminder-enable" type="button">Enable reminders</button><button class="btn btn-sun btn-sm" id="verify-open" type="button" hidden>Verify email</button></div>
           </section>
           <section class="panel rail-card" aria-labelledby="how-title">
-            <p class="eyebrow">Proof review</p><h2 id="how-title">How points are earned</h2>
-            <ol class="steps"><li><b>Finish before the timer ends</b> then press <em>Submit proof</em>.</li><li><b>Choose a review</b>: instant AI check, or a human admin.</li><li><b>+100 points</b> when approved. <b>−500</b> if the timer runs out.</li></ol>
+            <p class="eyebrow">Proof review</p><h2 id="how-title">How points work</h2>
+            <ol class="steps"><li><b>Finish before the timer ends</b>, then press <em>Submit proof</em>.</li><li><b>Pick a review</b>: instant AI check or a human admin.</li><li><b>+100 points</b> when approved. <b>−500</b> if time runs out.</li></ol>
             <p class="rail-note">AI review is an assistive prototype. Unclear photos go to an admin.</p>
           </section>
         </aside>
@@ -159,13 +175,28 @@
       <p class="eyebrow">Account</p><h2>Account &amp; reminders</h2>
       <p class="dialog-copy">Choose how Daymark reaches you when a deadline is close. Messages are sent only if you opt in.</p>
       <div class="field"><label for="set-name">Name</label><input id="set-name" type="text" maxlength="60" autocomplete="name"></div>
-      <div class="field"><label for="set-email">Email</label><input id="set-email" type="text" inputmode="email" autocomplete="email" placeholder="you@example.com"></div>
+      <div class="field"><label for="set-email">Email</label><input id="set-email" type="text" inputmode="email" autocomplete="email" placeholder="you@example.com"><small class="field-hint" id="set-email-hint"></small></div>
       <div class="field"><label for="set-phone">Phone (with country code)</label><input id="set-phone" type="text" autocomplete="tel" placeholder="+91 98765 43210"></div>
-      <label class="switch-row"><input id="set-email-consent" type="checkbox"><span class="switch" aria-hidden="true"></span><span><b>Email reminders</b><small>One email shortly before a timer ends.</small></span></label>
+      <label class="switch-row"><input id="set-email-consent" type="checkbox"><span class="switch" aria-hidden="true"></span><span><b>Email reminders</b><small>One email shortly before a timer ends. The address must be verified.</small></span></label>
       <label class="switch-row"><input id="set-sms-consent" type="checkbox"><span class="switch" aria-hidden="true"></span><span><b>Text message reminders</b><small>One SMS shortly before a timer ends.</small></span></label>
       <div class="switch-row notify-row"><span><b>Browser pop-up alerts</b><small id="notify-state">Show a system notification when time is running out.</small></span><button class="btn btn-ghost btn-sm" type="button" id="notify-enable">Allow</button></div>
+      <p class="privacy-note">Your email address and phone number are shared with our messaging providers only to deliver the reminders you opt into.</p>
       <p class="dialog-status" id="settings-status" role="status"></p>
       <div class="dialog-actions"><button class="btn btn-ghost" type="button" id="signout-button">Sign out</button><button class="btn btn-primary" type="submit" id="settings-save">Save preferences</button></div>
+    </form>
+  </dialog>
+
+  <!-- ============ Email verification dialog ============ -->
+  <dialog class="dialog" id="verify-dialog">
+    <form id="verify-form" method="dialog" novalidate>
+      <button class="dialog-close" type="button" id="verify-close" aria-label="Close">×</button>
+      <p class="eyebrow">Confirm your email</p><h2>Enter your code</h2>
+      <p class="dialog-copy" id="verify-copy">We will email a 6-digit code to confirm your address before sending reminders.</p>
+      <label for="verify-code" class="sr-only">6-digit code</label>
+      <input class="code-input" id="verify-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+      <button class="btn btn-primary btn-block" id="verify-submit" type="submit">Verify email</button>
+      <button class="btn btn-ghost btn-block" id="verify-resend" type="button">Send a new code</button>
+      <p class="dialog-status" id="verify-status" role="status"></p>
     </form>
   </dialog>
 </body>

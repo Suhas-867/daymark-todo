@@ -2,6 +2,8 @@
 // Everything lives in this browser's localStorage and is shared live with the admin console.
 import { SESSION_KEY, createLocalDb } from './local-db.js';
 import { prepareProofImage, scoreProof } from './ai-review.js';
+import { sendEmail } from './email-service.js';
+import { emailLimits } from './messaging-config.js';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -44,7 +46,28 @@ export function createDemoBackend(storage = window.localStorage) {
         async expireTask(task) { return db.expireTask(user.uid, task.id); },
         async deleteTask(task) { db.deleteTask(user.uid, task.id); },
         async savePreferences(preferences) { return db.updatePreferences(user.uid, preferences); },
-        async sendReminder(task) { return db.sendDeadlineReminder(user.uid, task.id); },
+        supportsEmailVerification: true,
+        async sendEmailCode() {
+          const { code, email } = await db.startEmailVerification(user.uid), profile = db.getUser(user.uid);
+          const result = await sendEmail({ to: email, name: profile?.name || 'Daymark', subject: 'Your Daymark verification code', message: `Your Daymark verification code is ${code}. It expires in ${emailLimits.codeLifetimeMinutes} minutes. If you did not ask for it, you can ignore this email.` });
+          return { email, delivered: result.delivered, devCode: result.simulated ? code : null };
+        },
+        async verifyEmailCode(code) { return db.confirmEmailVerification(user.uid, code); },
+        /** Records the reminder, then really emails verified members. Resolves with the final status of each channel. */
+        async sendReminder(task) {
+          const entries = db.sendDeadlineReminder(user.uid, task.id), profile = db.getUser(user.uid), results = [];
+          for (const entry of entries) {
+            if (entry.channel === 'email' && entry.status === 'queued') {
+              try {
+                const sent = await sendEmail({ to: entry.to, name: profile?.name || 'Daymark', subject: entry.subject, message: entry.body });
+                entry.status = sent.delivered ? 'sent' : 'simulated'; entry.detail = sent.delivered ? '' : 'Local development: not delivered';
+              } catch (error) { entry.status = 'failed'; entry.detail = error.message; }
+              db.settleOutbox(entry.id, entry.status, entry.detail);
+            }
+            results.push({ channel: entry.channel, to: entry.to, status: entry.status, detail: entry.detail });
+          }
+          return results;
+        },
         signOut: () => backend.signOut()
       };
     }
