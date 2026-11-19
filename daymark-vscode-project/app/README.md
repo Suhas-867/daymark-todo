@@ -44,5 +44,5 @@ Port `8001` lets this copy run beside the original app on port `8000`.
 - `tests/tasks.test.js` — task behavior tests.
 - `.github/workflows/ci.yml` — checks the project on pushes and pull requests.
 
-Tasks, demo membership, points, and reward milestones remain in this browser's local storage. No payment or payout service is connected.
+Tasks and the free-trial counter remain in this browser's local storage. Points, earned demo rewards, and demo membership reset on refresh. No payment or payout service is connected.
 
