@@ -3,6 +3,7 @@
 import { SESSION_KEY, createLocalDb } from './local-db.js';
 import { prepareProofImage, scoreProof } from './ai-review.js';
 import { sendEmail } from './email-service.js';
+import { sendSms, smsReady } from './sms-service.js';
 import { emailLimits } from './messaging-config.js';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -46,20 +47,27 @@ export function createDemoBackend(storage = window.localStorage) {
         async expireTask(task) { return db.expireTask(user.uid, task.id); },
         async deleteTask(task) { db.deleteTask(user.uid, task.id); },
         async savePreferences(preferences) { return db.updatePreferences(user.uid, preferences); },
-        supportsEmailVerification: true,
-        async sendEmailCode() {
-          const { code, email } = await db.startEmailVerification(user.uid), profile = db.getUser(user.uid);
-          const result = await sendEmail({ to: email, name: profile?.name || 'Daymark', subject: 'Your Daymark verification code', message: `Your Daymark verification code is ${code}. It expires in ${emailLimits.codeLifetimeMinutes} minutes. If you did not ask for it, you can ignore this email.` });
-          return { email, delivered: result.delivered, devCode: result.simulated ? code : null };
+        supportsVerification: { email: true, sms: smsReady() },
+        async sendVerificationCode(channel) {
+          const profile = db.getUser(user.uid);
+          if (channel === 'sms') {
+            const { code, target } = await db.startPhoneVerification(user.uid), result = await sendSms({ to: target, kind: 'otp', code });
+            return { target, delivered: result.delivered, devCode: result.simulated ? code : null };
+          }
+          const { code, target } = await db.startEmailVerification(user.uid);
+          const result = await sendEmail({ to: target, name: profile?.name || 'Daymark', subject: 'Your Daymark verification code', message: `Your Daymark verification code is ${code}. It expires in ${emailLimits.codeLifetimeMinutes} minutes. If you did not ask for it, you can ignore this email.` });
+          return { target, delivered: result.delivered, devCode: result.simulated ? code : null };
         },
-        async verifyEmailCode(code) { return db.confirmEmailVerification(user.uid, code); },
-        /** Records the reminder, then really emails verified members. Resolves with the final status of each channel. */
+        async verifyCode(channel, code) { return channel === 'sms' ? db.confirmPhoneVerification(user.uid, code) : db.confirmEmailVerification(user.uid, code); },
+        /** Records the reminder, then really emails / texts verified members. Resolves with the final status of each channel. */
         async sendReminder(task) {
-          const entries = db.sendDeadlineReminder(user.uid, task.id), profile = db.getUser(user.uid), results = [];
+          const entries = db.sendDeadlineReminder(user.uid, task.id, { smsLive: smsReady() }), profile = db.getUser(user.uid), results = [];
           for (const entry of entries) {
-            if (entry.channel === 'email' && entry.status === 'queued') {
+            if (entry.status === 'queued') {
               try {
-                const sent = await sendEmail({ to: entry.to, name: profile?.name || 'Daymark', subject: entry.subject, message: entry.body });
+                const sent = entry.channel === 'email'
+                  ? await sendEmail({ to: entry.to, name: profile?.name || 'Daymark', subject: entry.subject, message: entry.body })
+                  : await sendSms({ to: entry.to, kind: 'reminder', title: task.title });
                 entry.status = sent.delivered ? 'sent' : 'simulated'; entry.detail = sent.delivered ? '' : 'Local development: not delivered';
               } catch (error) { entry.status = 'failed'; entry.detail = error.message; }
               db.settleOutbox(entry.id, entry.status, entry.detail);

@@ -14,6 +14,15 @@ export const emailConfig = Object.freeze({
 // set, text reminders are simulated and shown in the admin outbox.
 export const smsConfig = Object.freeze({ relayUrl: '' });
 
+// Text messages cost money, so they are limited more tightly than email.
+export const smsLimits = Object.freeze({
+  codeCooldownSeconds: 60,
+  codesPerHour: 3,
+  codeLifetimeMinutes: 10,
+  maxCodeAttempts: 5,
+  remindersPerDay: 5
+});
+
 // Safety limits that protect the free EmailJS quota (200 requests per month).
 export const emailLimits = Object.freeze({
   codeCooldownSeconds: 60,

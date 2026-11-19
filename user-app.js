@@ -7,7 +7,7 @@
 //   createTask({ title, durationMinutes }), activateMembership() -> { expiresAt, alreadyActive },
 //   submitProof({ task, file, mode }), expireTask(task), deleteTask(task),
 //   savePreferences(prefs) -> profile, sendReminder(task) -> [{channel, to, status, detail}], signOut()
-//   optional: supportsEmailVerification, sendEmailCode() -> {email, delivered, devCode}, verifyEmailCode(code)
+//   optional: supportsVerification {email, sms}, sendVerificationCode(channel) -> {target, delivered, devCode}, verifyCode(channel, code)
 // }
 import { FREE_TASK_LIMIT } from './rewards.js';
 
@@ -107,11 +107,14 @@ export function startUserApp(adapter, options = {}) {
     const hour = new Date().getHours(), greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
     $('#greeting').textContent = profile.name ? `${greet}, ${profile.name.split(' ')[0]}` : greet;
     const setState = (id, on, label = 'On', cls = 'state-on') => { const el = $(id); el.textContent = on ? label : 'Off'; el.className = on ? cls : 'state-off'; };
-    const canVerify = Boolean(adapter.supportsEmailVerification), needsVerify = canVerify && profile.email && profile.emailReminders && !profile.emailVerified;
-    setState('#reminder-email-state', profile.emailReminders, needsVerify ? 'Verify email' : 'On', needsVerify ? 'state-warn' : 'state-on'); setState('#reminder-sms-state', profile.smsReminders);
-    $('#verify-open').hidden = !needsVerify;
+    const sv = adapter.supportsVerification || {}, needsEmail = Boolean(sv.email && profile.email && profile.emailReminders && !profile.emailVerified), needsSms = Boolean(sv.sms && profile.phone && profile.smsReminders && !profile.phoneVerified);
+    setState('#reminder-email-state', profile.emailReminders, needsEmail ? 'Verify email' : 'On', needsEmail ? 'state-warn' : 'state-on');
+    setState('#reminder-sms-state', profile.smsReminders, needsSms ? 'Verify phone' : sv.sms ? 'On' : 'On (simulated)', needsSms ? 'state-warn' : 'state-on');
+    const needsVerify = needsEmail || needsSms;
+
+    $('#verify-open').hidden = !needsEmail; $('#verify-phone-open').hidden = !needsSms;
     const any = profile.emailReminders || profile.smsReminders;
-    $('#reminder-note').textContent = needsVerify ? 'Confirm your email address with a 6-digit code so reminders can be delivered.' : any ? 'You will be warned shortly before a timer ends.' : 'Turn on reminders to be warned before a timer runs out. Pop-ups in this app are always on.';
+    $('#reminder-note').textContent = needsVerify ? `Confirm your ${needsEmail ? 'email address' : 'phone number'} with a 6-digit code so reminders can be delivered.` : any ? 'You will be warned shortly before a timer ends.' : 'Turn on reminders to be warned before a timer runs out. Pop-ups in this app are always on.';
     $('#reminder-enable').textContent = any ? 'Manage reminders' : 'Enable reminders'; $('#reminder-enable').className = any ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm';
   }
 
@@ -273,40 +276,55 @@ export function startUserApp(adapter, options = {}) {
     try {
       await adapter.savePreferences({ name: $('#set-name').value, email: $('#set-email').value, phone: $('#set-phone').value, emailReminders: $('#set-email-consent').checked, smsReminders: $('#set-sms-consent').checked });
       status.textContent = 'Preferences saved.'; status.className = 'dialog-status is-ok';
-      setTimeout(() => { settings.close(); const profile = state.profile; if (adapter.supportsEmailVerification && profile.email && profile.emailReminders && !profile.emailVerified) openVerify(false); }, 700);
+      setTimeout(() => { settings.close(); const profile = state.profile; const next = pendingChannel(profile); if (next) openVerify(next, false); }, 700);
     } catch (error) { status.textContent = messageOf(error); status.className = 'dialog-status is-error'; }
     finally { button.disabled = false; }
   });
 
-  /* ---------- email verification ---------- */
-  const verifyDialog = $('#verify-dialog');
+  /* ---------- email / phone verification ---------- */
+  const verifyDialog = $('#verify-dialog'); let verifyChannel = 'email';
+  const channelWords = { email: { noun: 'email address', verb: 'emailed', title: 'Confirm your email' }, sms: { noun: 'phone number', verb: 'texted', title: 'Confirm your phone' } };
+  function pendingChannel(profile) {
+    const sv = adapter.supportsVerification || {};
+    if (sv.email && profile.email && profile.emailReminders && !profile.emailVerified) return 'email';
+    if (sv.sms && profile.phone && profile.smsReminders && !profile.phoneVerified) return 'sms';
+    return null;
+  }
   function verifyMessage(text, kind = '') { const el = $('#verify-status'); el.textContent = text; el.className = `dialog-status${kind ? ` is-${kind}` : ''}`; }
   async function sendCode(automatic = false) {
-    const button = $('#verify-resend'); button.disabled = true;
+    const button = $('#verify-resend'), words = channelWords[verifyChannel]; button.disabled = true;
     try {
-      const result = await adapter.sendEmailCode();
-      $('#verify-copy').textContent = result.delivered ? `We emailed a 6-digit code to ${result.email}. It can take a minute to arrive; check spam too.` : `Local development: no email was sent to ${result.email}. Use the test code shown on screen.`;
-      verifyMessage(result.delivered ? 'Code sent. Enter it below.' : 'Local development: email delivery is skipped.', 'ok');
+      const result = await adapter.sendVerificationCode(verifyChannel);
+      $('#verify-copy').textContent = result.delivered ? `We ${words.verb} a 6-digit code to ${result.target}. It can take a minute to arrive${verifyChannel === 'email' ? '; check spam too' : ''}.` : `Local development: nothing was sent to ${result.target}. Use the test code shown on screen.`;
+      verifyMessage(result.delivered ? 'Code sent. Enter it below.' : 'Local development: delivery is skipped.', 'ok');
       if (result.devCode) toast({ title: 'Local test code', body: `Your code is ${result.devCode} (shown only when running on localhost).`, kind: 'info', timeout: 20000 });
     } catch (error) { verifyMessage(automatic ? `${messageOf(error)} If you already have a code, enter it below.` : messageOf(error), 'error'); }
     finally { button.disabled = false; }
   }
-  function openVerify(automatic = false) {
-    if (!adapter.supportsEmailVerification || !state.profile.email) return;
-    $('#verify-code').value = ''; verifyMessage(''); $('#verify-copy').textContent = `We will email a 6-digit code to ${state.profile.email} to confirm your address.`;
+  function openVerify(channel, automatic = false) {
+    const target = channel === 'email' ? state.profile.email : state.profile.phone;
+    if (!adapter.supportsVerification?.[channel] || !target) return;
+    verifyChannel = channel; const words = channelWords[channel];
+    $('#verify-title').textContent = words.title; $('#verify-code').value = ''; verifyMessage('');
+    $('#verify-copy').textContent = `We will ${channel === 'email' ? 'email' : 'text'} a 6-digit code to ${target} to confirm your ${words.noun}.`;
     if (!verifyDialog.open) verifyDialog.showModal(); $('#verify-code').focus(); sendCode(automatic);
   }
-  $('#verify-open').addEventListener('click', () => openVerify(false));
+  $('#verify-open').addEventListener('click', () => openVerify('email', false));
+  $('#verify-phone-open').addEventListener('click', () => openVerify('sms', false));
   $('#verify-close').addEventListener('click', () => verifyDialog.close());
   $('#verify-resend').addEventListener('click', () => sendCode(false));
   $('#verify-form').addEventListener('submit', async event => {
-    event.preventDefault(); const button = $('#verify-submit'); button.disabled = true;
-    try { await adapter.verifyEmailCode($('#verify-code').value); verifyMessage('Email verified. Reminders are on.', 'ok'); toast({ title: '✅ Email verified', body: 'Deadline reminders will now be emailed to you.', kind: 'success' }); setTimeout(() => verifyDialog.close(), 700); }
-    catch (error) { verifyMessage(messageOf(error), 'error'); }
+    event.preventDefault(); const button = $('#verify-submit'), words = channelWords[verifyChannel]; button.disabled = true;
+    try {
+      await adapter.verifyCode(verifyChannel, $('#verify-code').value);
+      verifyMessage(`${verifyChannel === 'email' ? 'Email' : 'Phone'} verified. Reminders are on.`, 'ok');
+      toast({ title: `✅ ${verifyChannel === 'email' ? 'Email' : 'Phone'} verified`, body: `Deadline reminders will now be ${words.verb} to you.`, kind: 'success' });
+      setTimeout(() => { verifyDialog.close(); const next = pendingChannel(state.profile); if (next && next !== verifyChannel) openVerify(next, false); }, 700);
+    } catch (error) { verifyMessage(messageOf(error), 'error'); }
     finally { button.disabled = false; }
   });
-  if (options.justSignedUp && adapter.supportsEmailVerification) {
-    const unsubscribeOnce = adapter.subscribe(snapshot => { if (snapshot.profile?.email && snapshot.profile.emailReminders && !snapshot.profile.emailVerified) { state = snapshot; setTimeout(() => openVerify(true), 400); } queueMicrotask(() => unsubscribeOnce?.()); });
+  if (options.justSignedUp && adapter.supportsVerification) {
+    const unsubscribeOnce = adapter.subscribe(snapshot => { const next = pendingChannel(snapshot.profile || {}); if (next) { state = snapshot; setTimeout(() => openVerify(next, true), 400); } queueMicrotask(() => unsubscribeOnce?.()); });
   }
 
   $('#today-label').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());

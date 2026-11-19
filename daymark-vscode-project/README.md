@@ -12,10 +12,10 @@ A timed-task app with a membership and rewards idea, accounts, AI/manual proof r
 - Every 1,000 points: ₹30 demo reward. Points, rewards and membership reset when the page is refreshed.
 - Timers: 1, 5, 15, 30 minutes, 1 hour, or custom 1 minute – 24 hours.
 - Sign in with an **email or phone number** plus password. Deadline reminders by email/SMS are opt-in at sign-up and can be enabled later in **Account & reminders**.
-- Reminder **emails are real** (EmailJS) once the address is verified with a 6-digit code; SMS is still simulated.
+- Reminder **emails are real** (EmailJS) and **texts are real** (Twilio via a Cloudflare Worker in `worker/`) once the address or number is verified with a 6-digit code. Until the Worker URL is set, texts are simulated.
 - Proof photos go to **AI review** (instant, on-device demo check) or **manual review** on the separate admin site.
 
-Everything is a prototype: no payments, no payouts. Verified emails are really sent; text messages are simulated.
+Everything is a prototype: no payments, no payouts. Verified emails are really sent; texts are sent once the relay is connected.
 
 ## Open in VS Code
 
@@ -44,6 +44,7 @@ Everything is a prototype: no payments, no payouts. Verified emails are really s
 | --- | --- |
 | `rewards.js`, `tasks.js` | Pure scoring and task rules, tested in `tests/` |
 | `email-service.js`, `messaging-config.js` | Sending email through EmailJS and the safety limits |
+| `sms-service.js`, `worker/sms-relay.js` | A locked-down relay so Twilio secrets never reach the browser |
 | `ai-review.js` | Image statistics and the approve / needs-human / reject decision |
 | `local-db.js` | A tiny database with live updates across browser tabs |
 | `demo-backend.js`, `cloud-backend.js` | The same adapter interface over localStorage or Firebase |

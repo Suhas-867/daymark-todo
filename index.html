@@ -49,7 +49,7 @@
           <legend>Deadline reminders</legend>
           <p>Allow Daymark to message you when a task timer is almost up. You can change this any time in Settings.</p>
           <label class="check-row"><input id="consent-email" type="checkbox"><span>Email me deadline reminders <small>(we will email a code to confirm your address)</small></span></label>
-          <label class="check-row"><input id="consent-sms" type="checkbox"><span>Text me deadline reminders (SMS)</span></label>
+          <label class="check-row"><input id="consent-sms" type="checkbox"><span>Text me deadline reminders (SMS) <small>(we will text a code to confirm your number)</small></span></label>
           <p class="privacy-note">If you opt in, your email address and phone number are shared with our messaging providers only to deliver these messages.</p>
         </fieldset>
 
@@ -83,7 +83,7 @@
     </header>
 
     <main class="main-content" id="today">
-      <div class="demo-banner" id="demo-banner" hidden><strong>Demo mode</strong><span>Data stays in this browser. Open <a href="admin/" target="_blank" rel="noopener">the admin site</a> in another tab to review proofs live. Verified emails are really sent; text messages are simulated.</span></div>
+      <div class="demo-banner" id="demo-banner" hidden><strong>Demo mode</strong><span>Data stays in this browser. Open <a href="admin/" target="_blank" rel="noopener">the admin site</a> in another tab to review proofs live. Verified emails and texts are really sent when the messaging services are connected.</span></div>
 
       <section class="hero">
         <div class="hero-card">
@@ -131,7 +131,7 @@
             <p class="eyebrow">Reminders</p><h2 id="reminder-title">Deadline alerts</h2>
             <ul class="status-list"><li><span>📧 Email</span><b id="reminder-email-state" class="state-off">Off</b></li><li><span>💬 Text message</span><b id="reminder-sms-state" class="state-off">Off</b></li></ul>
             <p class="rail-note" id="reminder-note">Turn on reminders to be warned before a timer runs out.</p>
-            <div class="rail-actions"><button class="btn btn-primary btn-sm" id="reminder-enable" type="button">Enable reminders</button><button class="btn btn-sun btn-sm" id="verify-open" type="button" hidden>Verify email</button></div>
+            <div class="rail-actions"><button class="btn btn-primary btn-sm" id="reminder-enable" type="button">Enable reminders</button><button class="btn btn-sun btn-sm" id="verify-open" type="button" hidden>Verify email</button><button class="btn btn-sun btn-sm" id="verify-phone-open" type="button" hidden>Verify phone</button></div>
           </section>
           <section class="panel rail-card" aria-labelledby="how-title">
             <p class="eyebrow">Proof review</p><h2 id="how-title">How points work</h2>
@@ -178,7 +178,7 @@
       <div class="field"><label for="set-email">Email</label><input id="set-email" type="text" inputmode="email" autocomplete="email" placeholder="you@example.com"><small class="field-hint" id="set-email-hint"></small></div>
       <div class="field"><label for="set-phone">Phone (with country code)</label><input id="set-phone" type="text" autocomplete="tel" placeholder="+91 98765 43210"></div>
       <label class="switch-row"><input id="set-email-consent" type="checkbox"><span class="switch" aria-hidden="true"></span><span><b>Email reminders</b><small>One email shortly before a timer ends. The address must be verified.</small></span></label>
-      <label class="switch-row"><input id="set-sms-consent" type="checkbox"><span class="switch" aria-hidden="true"></span><span><b>Text message reminders</b><small>One SMS shortly before a timer ends.</small></span></label>
+      <label class="switch-row"><input id="set-sms-consent" type="checkbox"><span class="switch" aria-hidden="true"></span><span><b>Text message reminders</b><small>One SMS shortly before a timer ends. The number must be verified.</small></span></label>
       <div class="switch-row notify-row"><span><b>Browser pop-up alerts</b><small id="notify-state">Show a system notification when time is running out.</small></span><button class="btn btn-ghost btn-sm" type="button" id="notify-enable">Allow</button></div>
       <p class="privacy-note">Your email address and phone number are shared with our messaging providers only to deliver the reminders you opt into.</p>
       <p class="dialog-status" id="settings-status" role="status"></p>
@@ -190,7 +190,7 @@
   <dialog class="dialog" id="verify-dialog">
     <form id="verify-form" method="dialog" novalidate>
       <button class="dialog-close" type="button" id="verify-close" aria-label="Close">×</button>
-      <p class="eyebrow">Confirm your email</p><h2>Enter your code</h2>
+      <p class="eyebrow">Verification</p><h2 id="verify-title">Enter your code</h2>
       <p class="dialog-copy" id="verify-copy">We will email a 6-digit code to confirm your address before sending reminders.</p>
       <label for="verify-code" class="sr-only">6-digit code</label>
       <input class="code-input" id="verify-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">

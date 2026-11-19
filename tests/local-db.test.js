@@ -211,7 +211,11 @@ test('reminders are recorded once, only for opted-in channels; email needs a ver
   db.settleOutbox(emailEntry.id, 'sent');
   assert.equal(db.adminSnapshot().outbox.find(m => m.id === emailEntry.id).status, 'sent');
   const third = db.createTask(user.uid, 'session-1', { title: 'Third', durationMinutes: 5 });
-  assert.equal(db.sendDeadlineReminder(user.uid, third.id, { smsLive: true }).find(m => m.channel === 'sms').status, 'queued');
+  const live = db.sendDeadlineReminder(user.uid, third.id, { smsLive: true }).find(m => m.channel === 'sms');
+  assert.equal(live.status, 'skipped'); assert.match(live.detail, /not verified/);
+  const { code } = await db.startPhoneVerification(user.uid); await db.confirmPhoneVerification(user.uid, code);
+  const fourth = db.createTask(user.uid, 'session-1', { title: 'Fourth', durationMinutes: 5 });
+  assert.equal(db.sendDeadlineReminder(user.uid, fourth.id, { smsLive: true }).find(m => m.channel === 'sms').status, 'queued');
   const other = await db.signUp({ identifier: 'quiet@example.com', password: 'secret-pass' }); db.startSession(other.uid, 's-2');
   const quietTask = db.createTask(other.uid, 's-2', { title: 'Quiet', durationMinutes: 5 });
   assert.deepEqual(db.sendDeadlineReminder(other.uid, quietTask.id), []);
@@ -247,4 +251,32 @@ test('subscribers are notified on changes and reset wipes the demo data', async 
   assert.ok(calls >= 3);
   db.reset();
   assert.equal(db.adminSnapshot().stats.members, 0);
+});
+
+test('phone verification mirrors email: hashed code, wrong tries, reset on number change, stricter hourly limit', async () => {
+  const { db, clock } = setup();
+  const user = await member(db, { extraContact: '9876543210', smsReminders: true });
+  const { code, target } = await db.startPhoneVerification(user.uid);
+  assert.equal(target, '+919876543210'); assert.match(code, /^\d{6}$/);
+  assert.ok(!JSON.stringify(db.read()).includes(`"${code}"`));
+  const wrong = code === '000000' ? '111111' : '000000';
+  await assert.rejects(db.confirmPhoneVerification(user.uid, wrong), /4 attempts left/);
+  await db.confirmPhoneVerification(user.uid, code);
+  assert.equal(db.getUser(user.uid).phoneVerified, true);
+  assert.equal(db.getUser(user.uid).emailVerified, false, 'email and phone are verified separately');
+  db.updatePreferences(user.uid, { name: 'Asha', email: 'asha@example.com', phone: '+919999999999', emailReminders: false, smsReminders: true });
+  assert.equal(db.getUser(user.uid).phoneVerified, false);
+  for (let i = 0; i < 3; i++) { clock.t += 61_000; await db.startPhoneVerification(user.uid).catch(e => { if (i < 2) throw e; }); }
+  clock.t += 61_000;
+  await assert.rejects(db.startPhoneVerification(user.uid), /Too many codes/);
+});
+
+test('daily text limit stops live SMS reminders', async () => {
+  const { db } = setup(); const user = await member(db, { extraContact: '9876543210', smsReminders: true });
+  const { code } = await db.startPhoneVerification(user.uid); await db.confirmPhoneVerification(user.uid, code);
+  db.activateMembership(user.uid, 'session-1');
+  const statuses = [];
+  for (let i = 0; i < 7; i++) { const task = db.createTask(user.uid, 'session-1', { title: `S${i}`, durationMinutes: 5 }); statuses.push(db.sendDeadlineReminder(user.uid, task.id, { smsLive: true })[0].status); }
+  assert.equal(statuses.filter(status => status === 'queued').length, 5);
+  assert.equal(statuses.at(-1), 'skipped');
 });

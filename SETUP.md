@@ -22,7 +22,9 @@ Verified members get real reminder emails. `messaging-config.js` holds the publi
 
 Emails are sent from the open page. On `localhost` delivery is skipped (EmailJS rejects that origin) and the verification code is displayed instead. The email path has limits: 5 verification codes an hour, a 60-second resend cooldown, 5 wrong attempts per code and 20 reminder emails a day per member.
 
-Text messages stay simulated in the admin *Reminder outbox* until an SMS relay is added (`smsConfig.relayUrl` in `messaging-config.js`). A relay is a tiny server-side function that keeps the SMS provider secret.
+### Real text messages in demo mode (Twilio + Cloudflare Worker)
+
+Twilio's secrets cannot live in a web page, so `worker/sms-relay.js` is a tiny Cloudflare Worker that holds them. Follow [`worker/README.md`](worker/README.md), then put the Worker URL in `smsConfig.relayUrl` in `messaging-config.js`. Until that URL is set, text messages are simulated and shown in the admin *Reminder outbox*. Phone numbers are verified with a texted 6-digit code (3 codes an hour, 5 attempts per code) and each member gets at most 5 reminder texts a day. A Twilio trial can only text numbers you verified in Twilio and starts each message with a trial notice.
 
 ## Live mode (real accounts, sync across devices, real messages)
 

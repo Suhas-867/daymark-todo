@@ -3,7 +3,7 @@
 // changes made in one tab show up live in the other. It is a prototype: data stays on this device,
 // passwords are only hashed client-side and email/SMS are simulated in an outbox.
 import { FREE_TASK_LIMIT, applyPointDelta, emptyRewards, extendDemoMembership, hasActiveMembership } from './rewards.js';
-import { emailLimits } from './messaging-config.js';
+import { emailLimits, smsLimits } from './messaging-config.js';
 
 export const DB_KEY = 'daymark.demo.db.v1';
 export const SESSION_KEY = 'daymark.demo.session.v1';
@@ -46,7 +46,7 @@ async function hashPassword(password, salt) {
 
 const publicUser = user => user && ({
   uid: user.uid, name: user.name, email: user.email, phone: user.phone, emailReminders: user.emailReminders,
-  smsReminders: user.smsReminders, emailVerified: Boolean(user.emailVerified), trialTasksUsed: user.trialTasksUsed, createdAt: user.createdAt
+  smsReminders: user.smsReminders, emailVerified: Boolean(user.emailVerified), phoneVerified: Boolean(user.phoneVerified), trialTasksUsed: user.trialTasksUsed, createdAt: user.createdAt
 });
 
 export function createLocalDb(storage = globalThis.localStorage, { now = () => Date.now() } = {}) {
@@ -81,6 +81,46 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
     else { task.status = 'failed'; task.failedAt = stamp; award(db, entry.uid, task.sessionId, -POINTS_PENALTY); }
   }
 
+  const CHANNELS = {
+    email: { value: 'email', verified: 'emailVerified', code: 'emailCode', limits: emailLimits, label: 'email address' },
+    phone: { value: 'phone', verified: 'phoneVerified', code: 'phoneCode', limits: smsLimits, label: 'phone number' }
+  };
+  /** Create a one-time code for an email address or phone number. The caller delivers it. Throws if requested too often. */
+  async function startVerification(uid, channel) {
+    const spec = CHANNELS[channel] || fail('Unknown channel.');
+    const code = String(globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0');
+    const hash = await hashPassword(code, uid + channel);
+    return mutate(db => {
+      const user = db.users[uid] || fail('Account not found. Please sign in again.');
+      if (!user[spec.value]) fail(`Add a ${spec.label} first.`);
+      if (user[spec.verified]) fail(`This ${spec.label} is already verified.`);
+      const t = now(), old = user[spec.code] || {};
+      const wait = Math.ceil(((old.sentAt || 0) + spec.limits.codeCooldownSeconds * 1000 - t) / 1000);
+      if (wait > 0) fail(`A code was just sent. You can request another in ${wait} seconds.`);
+      const windowStart = old.windowStart && t - old.windowStart < 3600_000 ? old.windowStart : t, sentCount = windowStart === old.windowStart ? (old.sentCount || 0) : 0;
+      if (sentCount >= spec.limits.codesPerHour) fail('Too many codes requested. Please try again in an hour.');
+      user[spec.code] = { hash, target: user[spec.value], expiresAt: t + spec.limits.codeLifetimeMinutes * 60_000, attempts: 0, sentAt: t, windowStart, sentCount: sentCount + 1 };
+      return { code, target: user[spec.value], email: user[spec.value], expiresInMinutes: spec.limits.codeLifetimeMinutes };
+    });
+  }
+  async function confirmVerification(uid, channel, code) {
+    const spec = CHANNELS[channel] || fail('Unknown channel.');
+    const clean = String(code ?? '').trim(), hash = await hashPassword(clean, uid + channel);
+    // Failures are returned (not thrown) from inside mutate so that attempt counts are saved.
+    const outcome = mutate(db => {
+      const user = db.users[uid] || fail('Account not found. Please sign in again.'), pending = user[spec.code];
+      if (user[spec.verified]) return { verified: true };
+      if (!pending?.hash || pending.target !== user[spec.value]) return { problem: 'Request a new code first.' };
+      if (now() > pending.expiresAt) { user[spec.code] = { ...pending, hash: null }; return { problem: 'That code has expired. Request a new one.' }; }
+      if (pending.attempts >= spec.limits.maxCodeAttempts) { user[spec.code] = { ...pending, hash: null }; return { problem: 'Too many wrong attempts. Request a new code.' }; }
+      if (!/^\d{6}$/.test(clean) || hash !== pending.hash) { pending.attempts += 1; return { problem: `That code is not correct. ${spec.limits.maxCodeAttempts - pending.attempts} attempts left.` }; }
+      user[spec.verified] = true; user[spec.code] = null; user[spec.verified + 'At'] = new Date(now()).toISOString();
+      return { verified: true };
+    });
+    if (outcome.problem) fail(outcome.problem);
+    return outcome;
+  }
+
   return {
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     read,
@@ -104,7 +144,7 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
         const clash = Object.values(db.users).find(user => (email && user.email === email) || (phone && user.phone === phone));
         if (clash) fail('An account with these details already exists. Sign in instead.');
         const uid = newId();
-        db.users[uid] = { uid, name: String(name).trim().slice(0, 60), email, phone, salt, passHash, emailReminders, smsReminders, consentUpdatedAt: new Date(now()).toISOString(), emailVerified: false, emailCode: null, trialTasksUsed: 0, activeSessionId: null, createdAt: new Date(now()).toISOString() };
+        db.users[uid] = { uid, name: String(name).trim().slice(0, 60), email, phone, salt, passHash, emailReminders, smsReminders, consentUpdatedAt: new Date(now()).toISOString(), emailVerified: false, emailCode: null, phoneVerified: false, phoneCode: null, trialTasksUsed: 0, activeSessionId: null, createdAt: new Date(now()).toISOString() };
         return publicUser(db.users[uid]);
       });
     },
@@ -127,44 +167,16 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
         const clash = Object.values(db.users).find(other => other.uid !== uid && ((nextEmail && other.email === nextEmail) || (nextPhone && other.phone === nextPhone)));
         if (clash) fail('Another account already uses that email or phone number.');
         if (nextEmail !== user.email) { user.emailVerified = false; if (user.emailCode) user.emailCode = { ...user.emailCode, hash: null }; } // a new address must be verified again; send counters are kept
+        if (nextPhone !== user.phone) { user.phoneVerified = false; if (user.phoneCode) user.phoneCode = { ...user.phoneCode, hash: null }; }
         Object.assign(user, { name: String(name ?? user.name).trim().slice(0, 60), email: nextEmail, phone: nextPhone, emailReminders: Boolean(emailReminders), smsReminders: Boolean(smsReminders), consentUpdatedAt: new Date(now()).toISOString() });
         return publicUser(user);
       });
     },
 
-    /** Create a one-time email code. The caller emails it. Throws if sent too often. */
-    async startEmailVerification(uid) {
-      const code = String(globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0');
-      const hash = await hashPassword(code, uid);
-      return mutate(db => {
-        const user = db.users[uid] || fail('Account not found. Please sign in again.');
-        if (!user.email) fail('Add an email address first.');
-        if (user.emailVerified) fail('This email address is already verified.');
-        const t = now(), old = user.emailCode || {};
-        const wait = Math.ceil(((old.sentAt || 0) + emailLimits.codeCooldownSeconds * 1000 - t) / 1000);
-        if (wait > 0) fail(`A code was just sent. You can request another in ${wait} seconds.`);
-        const windowStart = old.windowStart && t - old.windowStart < 3600_000 ? old.windowStart : t, sentCount = windowStart === old.windowStart ? (old.sentCount || 0) : 0;
-        if (sentCount >= emailLimits.codesPerHour) fail('Too many codes requested. Please try again in an hour.');
-        user.emailCode = { hash, email: user.email, expiresAt: t + emailLimits.codeLifetimeMinutes * 60_000, attempts: 0, sentAt: t, windowStart, sentCount: sentCount + 1 };
-        return { code, email: user.email, expiresInMinutes: emailLimits.codeLifetimeMinutes };
-      });
-    },
-    async confirmEmailVerification(uid, code) {
-      const clean = String(code ?? '').trim(), hash = await hashPassword(clean, uid);
-      // Failures are returned (not thrown) from inside mutate so that attempt counts are saved.
-      const outcome = mutate(db => {
-        const user = db.users[uid] || fail('Account not found. Please sign in again.'), pending = user.emailCode;
-        if (user.emailVerified) return { verified: true };
-        if (!pending?.hash || pending.email !== user.email) return { problem: 'Request a new code first.' };
-        if (now() > pending.expiresAt) { user.emailCode = { ...pending, hash: null }; return { problem: 'That code has expired. Request a new one.' }; }
-        if (pending.attempts >= emailLimits.maxCodeAttempts) { user.emailCode = { ...pending, hash: null }; return { problem: 'Too many wrong attempts. Request a new code.' }; }
-        if (!/^\d{6}$/.test(clean) || hash !== pending.hash) { pending.attempts += 1; return { problem: `That code is not correct. ${emailLimits.maxCodeAttempts - pending.attempts} attempts left.` }; }
-        user.emailVerified = true; user.emailCode = null; user.emailVerifiedAt = new Date(now()).toISOString();
-        return { verified: true };
-      });
-      if (outcome.problem) fail(outcome.problem);
-      return outcome;
-    },
+    startEmailVerification: uid => startVerification(uid, 'email'),
+    confirmEmailVerification: (uid, code) => confirmVerification(uid, 'email', code),
+    startPhoneVerification: uid => startVerification(uid, 'phone'),
+    confirmPhoneVerification: (uid, code) => confirmVerification(uid, 'phone', code),
 
     startSession(uid, sessionId) {
       mutate(db => {
@@ -288,7 +300,11 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
           const skip = !user.emailVerified ? 'Email not verified yet' : emailsToday >= emailLimits.remindersPerDay ? 'Daily email limit reached' : '';
           sent.push({ ...base, id: newId(), channel: 'email', to: user.email, subject: 'Daymark: your task deadline is close', body: `Hi ${user.name || 'there'}, "${task.title}" is due soon. Open Daymark and submit proof before the timer ends.`, status: skip ? 'skipped' : 'queued', detail: skip });
         }
-        if (user.smsReminders && user.phone) sent.push({ ...base, id: newId(), channel: 'sms', to: user.phone, subject: '', body: `Daymark: "${task.title}" is due soon. Submit proof before the timer ends.`, status: smsLive ? 'queued' : 'simulated', detail: '' });
+        if (user.smsReminders && user.phone) {
+          const smsToday = db.outbox.filter(m => m.uid === uid && m.channel === 'sms' && m.status !== 'skipped' && now() - Date.parse(m.at) < 86_400_000).length;
+          const skip = smsLive && !user.phoneVerified ? 'Phone number not verified yet' : smsLive && smsToday >= smsLimits.remindersPerDay ? 'Daily text limit reached' : '';
+          sent.push({ ...base, id: newId(), channel: 'sms', to: user.phone, subject: '', body: `Daymark: "${task.title}" is due soon. Submit proof before the timer ends.`, status: skip ? 'skipped' : smsLive ? 'queued' : 'simulated', detail: skip });
+        }
         db.outbox = [...sent, ...db.outbox].slice(0, 200);
         return sent;
       });
