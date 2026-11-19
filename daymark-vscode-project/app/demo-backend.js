@@ -25,6 +25,14 @@ export function createDemoBackend(storage = window.localStorage) {
     async signUp(fields) { const user = await db.signUp(fields); storage.setItem(SESSION_KEY, user.uid); notify(); return user; },
     async signIn(fields) { const user = await db.signIn(fields); storage.setItem(SESSION_KEY, user.uid); notify(); return user; },
     signOut() { storage.removeItem(SESSION_KEY); notify(); },
+    /** Forgot password: emails a 6-digit code (shown on screen on localhost). */
+    supportsPasswordReset: true,
+    async requestPasswordReset(identifier) {
+      const { code, target, name } = await db.startPasswordReset(identifier);
+      const result = await sendEmail({ to: target, name: name || 'Daymark', subject: 'Reset your Daymark password', message: `Your Daymark password reset code is ${code}. It expires in ${emailLimits.codeLifetimeMinutes} minutes. If you did not ask for it, you can ignore this email.` });
+      return { target, delivered: result.delivered, devCode: result.simulated ? code : null };
+    },
+    async resetPassword(details) { await db.completePasswordReset(details); },
 
     createAdapter(user) {
       const sessionId = crypto.randomUUID(); // memory-only: points and membership reset on every refresh

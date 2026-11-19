@@ -125,6 +125,43 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
     return outcome;
   }
 
+  /** Forgot password: email a one-time code to the address on the account. */
+  async function startPasswordReset(identifier) {
+    const contact = parseContact(identifier);
+    if (contact.type !== 'email') fail('Password reset uses the email address on the account. Enter your email.');
+    const target = Object.values(read().users).find(user => user.email === contact.value) || fail('No account uses that email address.');
+    const code = String(globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0');
+    const hash = await hashPassword(code, target.uid + 'reset');
+    return mutate(db => {
+      const user = db.users[target.uid], t = now(), old = user.resetCode || {}, limits = emailLimits;
+      const wait = Math.ceil(((old.sentAt || 0) + limits.codeCooldownSeconds * 1000 - t) / 1000);
+      if (wait > 0) fail(`A code was just sent. You can request another in ${wait} seconds.`);
+      const windowStart = old.windowStart && t - old.windowStart < 3600_000 ? old.windowStart : t, sentCount = windowStart === old.windowStart ? (old.sentCount || 0) : 0;
+      if (sentCount >= limits.codesPerHour) fail('Too many codes requested. Please try again in an hour.');
+      user.resetCode = { hash, expiresAt: t + limits.codeLifetimeMinutes * 60_000, attempts: 0, sentAt: t, windowStart, sentCount: sentCount + 1 };
+      return { code, target: user.email, name: user.name || '' };
+    });
+  }
+  /** Check the emailed code and set a new password. */
+  async function completePasswordReset({ identifier, code, newPassword }) {
+    if (String(newPassword || '').length < 8) fail('Choose a password with at least 8 characters.');
+    const contact = parseContact(identifier);
+    const target = Object.values(read().users).find(user => contact.type === 'email' && user.email === contact.value) || fail('Request a new code first.');
+    const clean = String(code ?? '').trim(), hash = await hashPassword(clean, target.uid + 'reset');
+    const salt = newId(), passHash = await hashPassword(String(newPassword), salt);
+    const outcome = mutate(db => {
+      const user = db.users[target.uid], pending = user.resetCode;
+      if (!pending?.hash) return { problem: 'Request a new code first.' };
+      if (now() > pending.expiresAt) { user.resetCode = { ...pending, hash: null }; return { problem: 'That code has expired. Request a new one.' }; }
+      if (pending.attempts >= emailLimits.maxCodeAttempts) { user.resetCode = { ...pending, hash: null }; return { problem: 'Too many wrong attempts. Request a new code.' }; }
+      if (!/^\d{6}$/.test(clean) || hash !== pending.hash) { pending.attempts += 1; return { problem: `That code is not correct. ${emailLimits.maxCodeAttempts - pending.attempts} attempts left.` }; }
+      Object.assign(user, { salt, passHash, emailVerified: true, resetCode: { ...pending, hash: null } }); // the code proves the address is theirs
+      return { ok: true };
+    });
+    if (outcome.problem) fail(outcome.problem);
+    return publicUser(read().users[target.uid]);
+  }
+
   return {
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     read,
@@ -183,6 +220,7 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
       });
     },
 
+    startPasswordReset, completePasswordReset,
     startEmailVerification: uid => startVerification(uid, 'email'),
     confirmEmailVerification: (uid, code) => confirmVerification(uid, 'email', code),
     startPhoneVerification: uid => startVerification(uid, 'phone'),

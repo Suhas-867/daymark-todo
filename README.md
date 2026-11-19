@@ -20,6 +20,7 @@ Points, demo rewards and the demo membership reset to zero when the page is refr
 ## What works today
 
 - **Accounts** — create an account or sign in with an **email address or a phone number** plus a password. After sign-up the app opens straight away.
+- **Forgot password** — on the sign-in tab, a 6-digit code is emailed to the address on the account (10-minute expiry, 5 attempts, 60-second cooldown, 5 codes an hour) and lets the member choose a new password.
 - **Reminder consent** — at sign-up the member opts in separately to email and SMS reminders, with a note that the address and number are shared with the messaging providers. If they decline, **Account & reminders** (and the *Deadline alerts* card) lets them enable it later.
 - **Real email** — verified addresses get real reminder emails through EmailJS, even in demo mode. A 6-digit code emailed to the address proves it is theirs first (10-minute expiry, 5 attempts, 60-second resend cooldown, 5 codes an hour, 20 reminder emails a day per member).
 - **Timed tasks** — countdown per task, flicker only while a timer is running, celebration with party poppers on success, “OOPS!” message on a missed timer, task input locks after the 10th free task.

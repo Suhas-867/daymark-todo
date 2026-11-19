@@ -17,6 +17,7 @@ function setMode(signUp) {
   $('auth-sub').textContent = signUp ? 'Use your email or phone number. It takes under a minute.' : 'Sign in with your email or phone number.';
   $('auth-submit').textContent = signUp ? 'Create account' : 'Sign in';
   for (const id of ['field-name', 'field-extra', 'consent-box']) $(id).hidden = !signUp;
+  $('forgot-link').hidden = signUp || !backend?.supportsPasswordReset;
   $('auth-password').autocomplete = signUp ? 'new-password' : 'current-password';
   setStatus('');
 }
@@ -51,6 +52,36 @@ form.addEventListener('submit', async event => {
   finally { button.disabled = false; }
 });
 
+/* ---------- forgot password ---------- */
+const resetDialog = $('reset-dialog');
+function resetMessage(text, kind = '') { const el = $('reset-status'); el.textContent = text; el.className = `dialog-status${kind ? ` is-${kind}` : ''}`; }
+$('forgot-link').addEventListener('click', () => {
+  $('reset-email').value = $('auth-email').value.includes('@') ? $('auth-email').value.trim() : ''; $('reset-code').value = ''; $('reset-password').value = '';
+  $('reset-step2').hidden = true; resetMessage(''); $('reset-send').textContent = 'Email me a code'; resetDialog.showModal(); $('reset-email').focus();
+});
+$('reset-close').addEventListener('click', () => resetDialog.close());
+$('reset-send').addEventListener('click', async () => {
+  const button = $('reset-send'); button.disabled = true; resetMessage('Sending…');
+  try {
+    const result = await backend.requestPasswordReset($('reset-email').value);
+    $('reset-step2').hidden = false; button.textContent = 'Send a new code'; $('reset-code').focus();
+    $('reset-copy').textContent = result.delivered ? `We emailed a 6-digit code to ${result.target}. It can take a minute; check spam too.` : `Local development: nothing was sent to ${result.target}. Your test code is ${result.devCode}.`;
+    resetMessage('Enter the code and choose a new password.', 'ok');
+  } catch (error) { resetMessage(error.message || 'Could not send the code.', 'error'); }
+  finally { button.disabled = false; }
+});
+$('reset-form').addEventListener('submit', async event => {
+  event.preventDefault(); if ($('reset-step2').hidden) return;
+  const button = $('reset-confirm'); button.disabled = true;
+  try {
+    await backend.resetPassword({ identifier: $('reset-email').value, code: $('reset-code').value, newPassword: $('reset-password').value });
+    resetMessage('Password changed. You can sign in now.', 'ok');
+    $('auth-email').value = $('reset-email').value; $('auth-password').value = ''; setMode(false); setStatus('Password changed. Sign in with your new password.', 'ok');
+    setTimeout(() => resetDialog.close(), 900);
+  } catch (error) { resetMessage(error.message || 'Could not reset the password.', 'error'); }
+  finally { button.disabled = false; }
+});
+
 async function enterApp(user) {
   if (appStarted && activeUserId === user.uid) { show('app'); return; }
   appStarted = true; activeUserId = user.uid;
@@ -78,6 +109,7 @@ async function boot() {
     }
   } catch (error) { show('gate'); setStatus(`Could not start Daymark: ${error.message}`, 'error'); return; }
 
+  setMode(createMode);
   backend.onAuthChange(user => {
     if (user) enterApp(user);
     else {

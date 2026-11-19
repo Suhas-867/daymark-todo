@@ -45,6 +45,8 @@
         <div class="field" id="field-extra"><label for="auth-phone" id="label-extra">Phone number for text reminders <em>(optional)</em></label><input id="auth-phone" type="text" autocomplete="tel" placeholder="+91 98765 43210"></div>
         <div class="field"><label for="auth-password">Password</label><div class="password-wrap"><input id="auth-password" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"><button type="button" class="password-toggle" id="password-toggle" aria-label="Show password">Show</button></div></div>
 
+        <button type="button" class="link-btn" id="forgot-link" hidden>Forgot your password?</button>
+
         <fieldset class="consent-box" id="consent-box">
           <legend>Deadline reminders</legend>
           <p>Allow Daymark to message you when a task timer is almost up. You can change this any time in Settings.</p>
@@ -184,6 +186,23 @@
       <p class="privacy-note">Your email address and phone number are shared with our messaging providers only to deliver the reminders you opt into.</p>
       <p class="dialog-status" id="settings-status" role="status"></p>
       <div class="dialog-actions"><button class="btn btn-ghost" type="button" id="signout-button">Sign out</button><button class="btn btn-primary" type="submit" id="settings-save">Save preferences</button></div>
+    </form>
+  </dialog>
+
+  <!-- ============ Forgot password dialog ============ -->
+  <dialog class="dialog" id="reset-dialog">
+    <form id="reset-form" method="dialog" novalidate>
+      <button class="dialog-close" type="button" id="reset-close" aria-label="Close">×</button>
+      <p class="eyebrow">Account</p><h2>Reset your password</h2>
+      <p class="dialog-copy" id="reset-copy">We will email a 6-digit code to the address on your account.</p>
+      <div class="field"><label for="reset-email">Email address</label><input id="reset-email" type="text" inputmode="email" autocomplete="email" placeholder="you@example.com"></div>
+      <button class="btn btn-ghost btn-block" id="reset-send" type="button">Email me a code</button>
+      <div id="reset-step2" hidden>
+        <div class="field reset-gap"><label for="reset-code">6-digit code</label><input id="reset-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></div>
+        <div class="field"><label for="reset-password">New password</label><input id="reset-password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div>
+        <button class="btn btn-primary btn-block" id="reset-confirm" type="submit">Set new password</button>
+      </div>
+      <p class="dialog-status" id="reset-status" role="status"></p>
     </form>
   </dialog>
 

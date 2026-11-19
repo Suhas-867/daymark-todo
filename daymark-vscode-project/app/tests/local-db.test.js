@@ -308,3 +308,36 @@ test('an existing account that switches to an admin address becomes an administr
   const updated = db.updatePreferences(user.uid, { name: 'Asha', email: 'suhasm867@gmail.com', phone: '', emailReminders: false, smsReminders: false });
   assert.equal(updated.isAdmin, true);
 });
+
+test('forgot password: an emailed code sets a new password, the old one stops working', async () => {
+  const { db, clock } = setup(); const user = await member(db);
+  await assert.rejects(db.startPasswordReset('nobody@example.com'), /No account uses that email/);
+  await assert.rejects(db.startPasswordReset('9876543210'), /Enter your email/);
+  const { code, target } = await db.startPasswordReset('ASHA@example.com');
+  assert.equal(target, 'asha@example.com'); assert.match(code, /^\d{6}$/);
+  assert.ok(!JSON.stringify(db.read()).includes(`"${code}"`), 'the code is stored hashed');
+  await assert.rejects(db.startPasswordReset('asha@example.com'), /seconds/);
+  await assert.rejects(db.completePasswordReset({ identifier: 'asha@example.com', code, newPassword: 'short' }), /at least 8/);
+  const wrong = code === '000000' ? '111111' : '000000';
+  await assert.rejects(db.completePasswordReset({ identifier: 'asha@example.com', code: wrong, newPassword: 'brand-new-pass' }), /4 attempts left/);
+  await db.completePasswordReset({ identifier: 'asha@example.com', code, newPassword: 'brand-new-pass' });
+  await assert.rejects(db.signIn({ identifier: 'asha@example.com', password: 'secret-pass' }), /Incorrect/);
+  assert.equal((await db.signIn({ identifier: 'asha@example.com', password: 'brand-new-pass' })).uid, user.uid);
+  await assert.rejects(db.completePasswordReset({ identifier: 'asha@example.com', code, newPassword: 'another-pass-1' }), /Request a new code/, 'a code works only once');
+  assert.equal(db.getUser(user.uid).emailVerified, true, 'the code proves the address');
+  clock.t += 1;
+});
+
+test('password reset codes expire, lock after wrong tries and are rate limited', async () => {
+  const { db, clock } = setup(); await member(db);
+  let { code } = await db.startPasswordReset('asha@example.com');
+  clock.t += 11 * 60_000;
+  await assert.rejects(db.completePasswordReset({ identifier: 'asha@example.com', code, newPassword: 'brand-new-pass' }), /expired/);
+  ({ code } = await db.startPasswordReset('asha@example.com'));
+  const wrong = code === '000000' ? '111111' : '000000';
+  for (let i = 0; i < 5; i++) await assert.rejects(db.completePasswordReset({ identifier: 'asha@example.com', code: wrong, newPassword: 'brand-new-pass' }), /not correct/);
+  await assert.rejects(db.completePasswordReset({ identifier: 'asha@example.com', code, newPassword: 'brand-new-pass' }), /Too many wrong attempts/);
+  for (let i = 0; i < 3; i++) { clock.t += 61_000; await db.startPasswordReset('asha@example.com'); }
+  clock.t += 61_000;
+  await assert.rejects(db.startPasswordReset('asha@example.com'), /Too many codes/);
+});
