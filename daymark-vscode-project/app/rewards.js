@@ -1,4 +1,4 @@
-export const REWARDS_KEY = 'daymark.learning.demo-rewards.v1';
+export const REWARDS_KEY = 'daymark.demo-rewards.v1';
 export const FREE_TASK_LIMIT = 10;
 
 const MEMBERSHIP_DAYS = 30;

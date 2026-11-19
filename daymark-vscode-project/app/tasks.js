@@ -1,4 +1,4 @@
-export const STORAGE_KEY = 'daymark.learning.tasks.v1';
+export const STORAGE_KEY = 'daymark.tasks.v1';
 
 export function createTask(title, now = new Date(), durationMinutes = 25) {
   const cleaned = String(title).trim();

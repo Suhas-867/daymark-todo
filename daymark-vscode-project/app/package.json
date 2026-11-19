@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "A polished, browser-based to-do list with local persistence.",
+  "description": "Daymark timed-task rewards prototype for VS Code.",
   "scripts": {
     "test": "node --test"
   }
