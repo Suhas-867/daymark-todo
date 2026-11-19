@@ -40,7 +40,8 @@ test('sign up validates input, blocks duplicates and signs in with hashed passwo
   await assert.rejects(db.signUp({ identifier: 'ASHA@example.com', password: 'another-pass' }), /already exists/);
   await assert.rejects(db.signUp({ identifier: '9876543210', password: 'another-pass' }), /already exists/);
   assert.equal((await db.signIn({ identifier: '+91 98765 43210', password: 'secret-pass' })).uid, user.uid);
-  await assert.rejects(db.signIn({ identifier: 'asha@example.com', password: 'wrong-pass' }), /Incorrect/);
+  await assert.rejects(db.signIn({ identifier: 'asha@example.com', password: 'wrong-pass' }), /Incorrect password/);
+  await assert.rejects(db.signIn({ identifier: 'ghost@example.com', password: 'whatever-1' }), /No account with that email/);
   assert.ok(!JSON.stringify(db.read()).includes('secret-pass'));
 });
 

@@ -191,7 +191,8 @@ export function createLocalDb(storage = globalThis.localStorage, { now = () => D
     async signIn({ identifier, password }) {
       const contact = parseContact(identifier), db = read();
       const user = Object.values(db.users).find(candidate => candidate[contact.type] === contact.value);
-      if (!user || user.passHash !== await hashPassword(String(password || ''), user.salt)) fail('Incorrect email/phone or password.');
+      if (!user) fail('No account with that email or phone number exists in this browser. Accounts are stored per browser, so create it here first.');
+      if (user.passHash !== await hashPassword(String(password || ''), user.salt)) fail('Incorrect password. Use "Forgot your password?" on the sign-in page of the user app to set a new one.');
       return publicUser(user);
     },
     /** Sign in to the admin console: a normal account whose email is on the admin list. */
